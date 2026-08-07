@@ -7,4 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PortfolioTransactionRepository extends JpaRepository<PortfolioTransaction, Long> {
 
 	List<PortfolioTransaction> findAllByPortfolioIdOrderByTransactionDateAscIdAsc(Long portfolioId);
+
+	List<PortfolioTransaction> findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+			Long portfolioId,
+			Long assetId);
 }

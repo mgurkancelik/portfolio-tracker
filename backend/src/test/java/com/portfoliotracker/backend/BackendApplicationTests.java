@@ -2,6 +2,7 @@ package com.portfoliotracker.backend;
 
 import com.portfoliotracker.backend.asset.AssetService;
 import com.portfoliotracker.backend.portfolio.PortfolioService;
+import com.portfoliotracker.backend.transaction.PortfolioTransactionService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +19,9 @@ class BackendApplicationTests {
 
 	@MockitoBean
 	private AssetService assetService;
+
+	@MockitoBean
+	private PortfolioTransactionService portfolioTransactionService;
 
 	@Test
 	void contextLoadsWithoutDatabaseAutoConfiguration() {
