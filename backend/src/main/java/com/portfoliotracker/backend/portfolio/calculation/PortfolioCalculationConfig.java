@@ -10,4 +10,9 @@ public class PortfolioCalculationConfig {
 	PositionCalculator positionCalculator() {
 		return new PositionCalculator();
 	}
+
+	@Bean
+	PositionValuationCalculator positionValuationCalculator() {
+		return new PositionValuationCalculator();
+	}
 }

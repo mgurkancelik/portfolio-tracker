@@ -19,5 +19,13 @@ public record PositionResponse(
 		@JsonSerialize(using = PlainBigDecimalSerializer.class)
 		BigDecimal costBasis,
 		@JsonSerialize(using = PlainBigDecimalSerializer.class)
-		BigDecimal realizedProfit) {
+		BigDecimal realizedProfit,
+		@JsonSerialize(using = PlainBigDecimalSerializer.class)
+		BigDecimal currentPrice,
+		@JsonSerialize(using = PlainBigDecimalSerializer.class)
+		BigDecimal marketValue,
+		@JsonSerialize(using = PlainBigDecimalSerializer.class)
+		BigDecimal unrealizedProfit,
+		@JsonSerialize(using = PlainBigDecimalSerializer.class)
+		BigDecimal unrealizedProfitPercentage) {
 }

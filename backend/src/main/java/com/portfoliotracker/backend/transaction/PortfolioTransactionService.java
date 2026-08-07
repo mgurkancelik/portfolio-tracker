@@ -9,13 +9,19 @@ import java.util.stream.Collectors;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
+import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
+import com.portfoliotracker.backend.marketdata.MarketDataProvider;
+import com.portfoliotracker.backend.marketdata.MarketPrice;
 import com.portfoliotracker.backend.portfolio.Portfolio;
 import com.portfoliotracker.backend.portfolio.PortfolioRepository;
 import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionSummary;
+import com.portfoliotracker.backend.portfolio.calculation.PositionValuation;
+import com.portfoliotracker.backend.portfolio.calculation.PositionValuationCalculator;
 
 import jakarta.persistence.EntityManager;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +36,10 @@ public class PortfolioTransactionService {
 
 	private final PositionCalculator positionCalculator;
 
+	private final PositionValuationCalculator positionValuationCalculator;
+
+	private final ObjectProvider<MarketDataProvider> marketDataProvider;
+
 	private final EntityManager entityManager;
 
 	public PortfolioTransactionService(
@@ -37,11 +47,15 @@ public class PortfolioTransactionService {
 			PortfolioRepository portfolioRepository,
 			AssetRepository assetRepository,
 			PositionCalculator positionCalculator,
+			PositionValuationCalculator positionValuationCalculator,
+			ObjectProvider<MarketDataProvider> marketDataProvider,
 			EntityManager entityManager) {
 		this.transactionRepository = transactionRepository;
 		this.portfolioRepository = portfolioRepository;
 		this.assetRepository = assetRepository;
 		this.positionCalculator = positionCalculator;
+		this.positionValuationCalculator = positionValuationCalculator;
+		this.marketDataProvider = marketDataProvider;
 		this.entityManager = entityManager;
 	}
 
@@ -104,9 +118,10 @@ public class PortfolioTransactionService {
 				.map(assetTransactions -> {
 					Asset asset = assetTransactions.get(0).getAsset();
 					PositionSummary summary = positionCalculator.calculate(assetTransactions);
-					return toPositionResponse(portfolioId, asset, summary);
+					return new PositionData(asset, summary);
 				})
-				.filter(position -> position.quantity().compareTo(BigDecimal.ZERO) > 0)
+				.filter(position -> position.summary().quantity().compareTo(BigDecimal.ZERO) > 0)
+				.map(position -> toPositionResponse(portfolioId, position.asset(), position.summary()))
 				.sorted(Comparator
 						.comparing(PositionResponse::assetSymbol)
 						.thenComparing(PositionResponse::assetId))
@@ -133,7 +148,8 @@ public class PortfolioTransactionService {
 				transaction.getCreatedAt());
 	}
 
-	private static PositionResponse toPositionResponse(Long portfolioId, Asset asset, PositionSummary summary) {
+	private PositionResponse toPositionResponse(Long portfolioId, Asset asset, PositionSummary summary) {
+		PositionValuation valuation = calculateValuation(asset, summary);
 		return new PositionResponse(
 				portfolioId,
 				asset.getId(),
@@ -143,6 +159,26 @@ public class PortfolioTransactionService {
 				summary.quantity(),
 				summary.averageCost(),
 				summary.costBasis(),
-				summary.realizedProfit());
+				summary.realizedProfit(),
+				valuation.currentPrice(),
+				valuation.marketValue(),
+				valuation.unrealizedProfit(),
+				valuation.unrealizedProfitPercentage());
+	}
+
+	private PositionValuation calculateValuation(Asset asset, PositionSummary summary) {
+		MarketDataProvider provider = marketDataProvider.getIfAvailable(() -> {
+			throw new MarketDataNotAvailableException("Market data provider is not configured.");
+		});
+		MarketPrice marketPrice = provider.getCurrentPrice(asset);
+		if (!asset.getCurrency().equals(marketPrice.currency())) {
+			throw new MarketDataNotAvailableException(
+					"Market data currency %s does not match asset currency %s for symbol %s."
+							.formatted(marketPrice.currency(), asset.getCurrency(), asset.getSymbol()));
+		}
+		return positionValuationCalculator.calculate(summary, marketPrice.price());
+	}
+
+	private record PositionData(Asset asset, PositionSummary summary) {
 	}
 }

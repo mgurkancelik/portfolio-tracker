@@ -26,6 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,6 +38,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
+@ActiveProfiles("fake-market-data")
 class PortfolioTransactionApiIntegrationTest {
 
 	@Container
@@ -102,7 +104,11 @@ class PortfolioTransactionApiIntegrationTest {
 				.andExpect(content().string(containsString("\"quantity\":15.00000000")))
 				.andExpect(content().string(containsString("\"costBasis\":1615.00000000")))
 				.andExpect(content().string(containsString("\"averageCost\":107.66666667")))
-				.andExpect(content().string(containsString("\"realizedProfit\":0.00000000")));
+				.andExpect(content().string(containsString("\"realizedProfit\":0.00000000")))
+				.andExpect(content().string(containsString("\"currentPrice\":150.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":2250.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfit\":635.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfitPercentage\":39.31888545")));
 
 		createTransaction(context, "SELL", "3", "140", "2", date(3))
 				.andExpect(status().isCreated());
@@ -112,7 +118,11 @@ class PortfolioTransactionApiIntegrationTest {
 				.andExpect(content().string(containsString("\"quantity\":12.00000000")))
 				.andExpect(content().string(containsString("\"costBasis\":1292.00000000")))
 				.andExpect(content().string(containsString("\"averageCost\":107.66666667")))
-				.andExpect(content().string(containsString("\"realizedProfit\":95.00000000")));
+				.andExpect(content().string(containsString("\"realizedProfit\":95.00000000")))
+				.andExpect(content().string(containsString("\"currentPrice\":150.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":1800.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfit\":508.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfitPercentage\":39.31888545")));
 
 		mockMvc.perform(get(transactionsPath(context.portfolio)))
 				.andExpect(status().isOk())
@@ -154,19 +164,29 @@ class PortfolioTransactionApiIntegrationTest {
 				.andExpect(content().string(containsString("\"averageCost\":107.66666667")))
 				.andExpect(content().string(containsString("\"costBasis\":1292.00000000")))
 				.andExpect(content().string(containsString("\"realizedProfit\":95.00000000")))
+				.andExpect(content().string(containsString("\"currentPrice\":150.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":1800.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfit\":508.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfitPercentage\":39.31888545")))
 				.andExpect(jsonPath("$[1].assetId").value(btc.getId().intValue()))
 				.andExpect(jsonPath("$[1].assetSymbol").value("BTC"))
 				.andExpect(jsonPath("$[1].assetType").value("CRYPTO"))
 				.andExpect(jsonPath("$[1].currency").value("USD"))
 				.andExpect(content().string(containsString("\"quantity\":0.50000000")))
-				.andExpect(content().string(containsString("\"costBasis\":30020.00000000")));
+				.andExpect(content().string(containsString("\"costBasis\":30020.00000000")))
+				.andExpect(content().string(containsString("\"currentPrice\":65000.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":32500.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfit\":2480.00000000")));
 
 		mockMvc.perform(get("/api/portfolios/%d/positions/%d".formatted(portfolio.getId(), eurtry.getId())))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.assetSymbol").value("EURTRY"))
 				.andExpect(jsonPath("$.assetType").value("FOREX"))
 				.andExpect(jsonPath("$.currency").value("TRY"))
-				.andExpect(content().string(containsString("\"quantity\":0.00000000")));
+				.andExpect(content().string(containsString("\"quantity\":0.00000000")))
+				.andExpect(content().string(containsString("\"currentPrice\":42.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":0.00000000")))
+				.andExpect(content().string(containsString("\"unrealizedProfit\":0.00000000")));
 	}
 
 	@Test
@@ -182,6 +202,18 @@ class PortfolioTransactionApiIntegrationTest {
 	void listOpenPositionsReturnsNotFoundForUnknownPortfolio() throws Exception {
 		mockMvc.perform(get("/api/portfolios/999999/positions"))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void singlePositionReturnsServiceUnavailableWhenMarketDataIsMissing() throws Exception {
+		Portfolio portfolio = createPortfolio();
+		Asset unknownAsset = createAsset("MSFT", "Microsoft Corp.", AssetType.STOCK, "USD");
+		createTransaction(portfolio, unknownAsset, "BUY", "1", "100", "0", date(1))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get("/api/portfolios/%d/positions/%d".formatted(portfolio.getId(), unknownAsset.getId())))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(content().string(containsString("Market data is not available for symbol: MSFT")));
 	}
 
 	@Test
