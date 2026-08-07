@@ -97,6 +97,8 @@ class PortfolioTransactionApiIntegrationTest {
 				.andExpect(jsonPath("$.portfolioId").value(context.portfolio.getId().intValue()))
 				.andExpect(jsonPath("$.assetId").value(context.asset.getId().intValue()))
 				.andExpect(jsonPath("$.assetSymbol").value("AAPL"))
+				.andExpect(jsonPath("$.assetType").value("STOCK"))
+				.andExpect(jsonPath("$.currency").value("USD"))
 				.andExpect(content().string(containsString("\"quantity\":15.00000000")))
 				.andExpect(content().string(containsString("\"costBasis\":1615.00000000")))
 				.andExpect(content().string(containsString("\"averageCost\":107.66666667")))
@@ -118,6 +120,68 @@ class PortfolioTransactionApiIntegrationTest {
 				.andExpect(jsonPath("$[0].transactionType").value("BUY"))
 				.andExpect(jsonPath("$[1].transactionType").value("BUY"))
 				.andExpect(jsonPath("$[2].transactionType").value("SELL"));
+	}
+
+	@Test
+	void listOpenPositionsReturnsOnlyOpenPositionsWithMetadataAndDeterministicOrder() throws Exception {
+		Portfolio portfolio = createPortfolio();
+		Asset aapl = createAsset("AAPL", "Apple Inc.", AssetType.STOCK, "USD");
+		Asset btc = createAsset("BTC", "Bitcoin", AssetType.CRYPTO, "USD");
+		Asset eurtry = createAsset("EURTRY", "Euro Turkish Lira", AssetType.FOREX, "TRY");
+
+		createTransaction(portfolio, aapl, "BUY", "10", "100", "10", date(1))
+				.andExpect(status().isCreated());
+		createTransaction(portfolio, aapl, "BUY", "5", "120", "5", date(2))
+				.andExpect(status().isCreated());
+		createTransaction(portfolio, aapl, "SELL", "3", "140", "2", date(3))
+				.andExpect(status().isCreated());
+		createTransaction(portfolio, btc, "BUY", "0.50000000", "60000", "20", date(4))
+				.andExpect(status().isCreated());
+		createTransaction(portfolio, eurtry, "BUY", "10", "40", "0", date(5))
+				.andExpect(status().isCreated());
+		createTransaction(portfolio, eurtry, "SELL", "10", "42", "0", date(6))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get(positionsPath(portfolio)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(2)))
+				.andExpect(jsonPath("$[0].portfolioId").value(portfolio.getId().intValue()))
+				.andExpect(jsonPath("$[0].assetId").value(aapl.getId().intValue()))
+				.andExpect(jsonPath("$[0].assetSymbol").value("AAPL"))
+				.andExpect(jsonPath("$[0].assetType").value("STOCK"))
+				.andExpect(jsonPath("$[0].currency").value("USD"))
+				.andExpect(content().string(containsString("\"quantity\":12.00000000")))
+				.andExpect(content().string(containsString("\"averageCost\":107.66666667")))
+				.andExpect(content().string(containsString("\"costBasis\":1292.00000000")))
+				.andExpect(content().string(containsString("\"realizedProfit\":95.00000000")))
+				.andExpect(jsonPath("$[1].assetId").value(btc.getId().intValue()))
+				.andExpect(jsonPath("$[1].assetSymbol").value("BTC"))
+				.andExpect(jsonPath("$[1].assetType").value("CRYPTO"))
+				.andExpect(jsonPath("$[1].currency").value("USD"))
+				.andExpect(content().string(containsString("\"quantity\":0.50000000")))
+				.andExpect(content().string(containsString("\"costBasis\":30020.00000000")));
+
+		mockMvc.perform(get("/api/portfolios/%d/positions/%d".formatted(portfolio.getId(), eurtry.getId())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assetSymbol").value("EURTRY"))
+				.andExpect(jsonPath("$.assetType").value("FOREX"))
+				.andExpect(jsonPath("$.currency").value("TRY"))
+				.andExpect(content().string(containsString("\"quantity\":0.00000000")));
+	}
+
+	@Test
+	void listOpenPositionsReturnsEmptyListWhenPortfolioHasNoTransactions() throws Exception {
+		Portfolio portfolio = createPortfolio();
+
+		mockMvc.perform(get(positionsPath(portfolio)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
+	}
+
+	@Test
+	void listOpenPositionsReturnsNotFoundForUnknownPortfolio() throws Exception {
+		mockMvc.perform(get("/api/portfolios/999999/positions"))
+				.andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -211,7 +275,11 @@ class PortfolioTransactionApiIntegrationTest {
 	}
 
 	private Asset createAsset() {
-		return assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+		return createAsset("AAPL", "Apple Inc.", AssetType.STOCK, "USD");
+	}
+
+	private Asset createAsset(String symbol, String name, AssetType assetType, String currency) {
+		return assetRepository.saveAndFlush(new Asset(symbol, name, assetType, currency));
 	}
 
 	private ResultActions createTransaction(
@@ -221,10 +289,21 @@ class PortfolioTransactionApiIntegrationTest {
 			String unitPrice,
 			String fee,
 			OffsetDateTime transactionDate) throws Exception {
-		return mockMvc.perform(post(transactionsPath(context.portfolio))
+		return createTransaction(context.portfolio, context.asset, transactionType, quantity, unitPrice, fee, transactionDate);
+	}
+
+	private ResultActions createTransaction(
+			Portfolio portfolio,
+			Asset asset,
+			String transactionType,
+			String quantity,
+			String unitPrice,
+			String fee,
+			OffsetDateTime transactionDate) throws Exception {
+		return mockMvc.perform(post(transactionsPath(portfolio))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(validRequest(
-						context.asset.getId(),
+						asset.getId(),
 						transactionType,
 						quantity,
 						unitPrice,
@@ -253,6 +332,10 @@ class PortfolioTransactionApiIntegrationTest {
 
 	private static String transactionsPath(Portfolio portfolio) {
 		return "/api/portfolios/%d/transactions".formatted(portfolio.getId());
+	}
+
+	private static String positionsPath(Portfolio portfolio) {
+		return "/api/portfolios/%d/positions".formatted(portfolio.getId());
 	}
 
 	private static String positionPath(TestContext context) {

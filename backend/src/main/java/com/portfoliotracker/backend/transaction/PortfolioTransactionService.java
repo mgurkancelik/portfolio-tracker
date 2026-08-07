@@ -1,6 +1,11 @@
 package com.portfoliotracker.backend.transaction;
 
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
@@ -80,14 +85,32 @@ public class PortfolioTransactionService {
 		List<PortfolioTransaction> transactions = transactionRepository
 				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, assetId);
 		PositionSummary summary = positionCalculator.calculate(transactions);
-		return new PositionResponse(
-				portfolioId,
-				assetId,
-				asset.getSymbol(),
-				summary.quantity(),
-				summary.averageCost(),
-				summary.costBasis(),
-				summary.realizedProfit());
+		return toPositionResponse(portfolioId, asset, summary);
+	}
+
+	@Transactional(readOnly = true)
+	public List<PositionResponse> getOpenPositions(Long portfolioId) {
+		ensurePortfolioExists(portfolioId);
+		List<PortfolioTransaction> transactions = transactionRepository
+				.findAllByPortfolioIdOrderByTransactionDateAscIdAsc(portfolioId);
+
+		Map<Long, List<PortfolioTransaction>> transactionsByAssetId = transactions.stream()
+				.collect(Collectors.groupingBy(
+						transaction -> transaction.getAsset().getId(),
+						LinkedHashMap::new,
+						Collectors.toList()));
+
+		return transactionsByAssetId.values().stream()
+				.map(assetTransactions -> {
+					Asset asset = assetTransactions.get(0).getAsset();
+					PositionSummary summary = positionCalculator.calculate(assetTransactions);
+					return toPositionResponse(portfolioId, asset, summary);
+				})
+				.filter(position -> position.quantity().compareTo(BigDecimal.ZERO) > 0)
+				.sorted(Comparator
+						.comparing(PositionResponse::assetSymbol)
+						.thenComparing(PositionResponse::assetId))
+				.toList();
 	}
 
 	private void ensurePortfolioExists(Long portfolioId) {
@@ -108,5 +131,18 @@ public class PortfolioTransactionService {
 				transaction.getFee(),
 				transaction.getTransactionDate(),
 				transaction.getCreatedAt());
+	}
+
+	private static PositionResponse toPositionResponse(Long portfolioId, Asset asset, PositionSummary summary) {
+		return new PositionResponse(
+				portfolioId,
+				asset.getId(),
+				asset.getSymbol(),
+				asset.getAssetType(),
+				asset.getCurrency(),
+				summary.quantity(),
+				summary.averageCost(),
+				summary.costBasis(),
+				summary.realizedProfit());
 	}
 }

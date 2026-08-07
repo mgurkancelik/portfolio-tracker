@@ -36,6 +36,11 @@ public class PortfolioTransactionController {
 		return transactionService.findAll(portfolioId);
 	}
 
+	@GetMapping("/positions")
+	public List<PositionResponse> listOpenPositions(@PathVariable Long portfolioId) {
+		return transactionService.getOpenPositions(portfolioId);
+	}
+
 	@GetMapping("/positions/{assetId}")
 	public PositionResponse getPosition(@PathVariable Long portfolioId, @PathVariable Long assetId) {
 		return transactionService.getPosition(portfolioId, assetId);
