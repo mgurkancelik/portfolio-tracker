@@ -4,6 +4,9 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 
+import com.portfoliotracker.backend.portfolio.PortfolioSummaryResponse;
+import com.portfoliotracker.backend.portfolio.PortfolioSummaryService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,8 +22,13 @@ public class PortfolioTransactionController {
 
 	private final PortfolioTransactionService transactionService;
 
-	public PortfolioTransactionController(PortfolioTransactionService transactionService) {
+	private final PortfolioSummaryService portfolioSummaryService;
+
+	public PortfolioTransactionController(
+			PortfolioTransactionService transactionService,
+			PortfolioSummaryService portfolioSummaryService) {
 		this.transactionService = transactionService;
+		this.portfolioSummaryService = portfolioSummaryService;
 	}
 
 	@PostMapping("/transactions")
@@ -44,5 +52,10 @@ public class PortfolioTransactionController {
 	@GetMapping("/positions/{assetId}")
 	public PositionResponse getPosition(@PathVariable Long portfolioId, @PathVariable Long assetId) {
 		return transactionService.getPosition(portfolioId, assetId);
+	}
+
+	@GetMapping("/summary")
+	public PortfolioSummaryResponse getSummary(@PathVariable Long portfolioId) {
+		return portfolioSummaryService.getSummary(portfolioId);
 	}
 }
