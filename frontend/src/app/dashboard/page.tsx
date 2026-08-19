@@ -1,6 +1,6 @@
 import { BackendErrorState, Dashboard, EmptyPortfolioState } from "@/components/dashboard";
-import { getPortfolioPositions, getPortfolios, getPortfolioSummary } from "@/lib/api";
-import type { Portfolio, PortfolioSummary, Position } from "@/types/api";
+import { getAssets, getPortfolioPositions, getPortfolios, getPortfolioSummary } from "@/lib/api";
+import type { Asset, Portfolio, PortfolioSummary, Position } from "@/types/api";
 
 export default async function DashboardPage() {
   const dashboardData = await loadDashboardData();
@@ -15,6 +15,7 @@ export default async function DashboardPage() {
 
   return (
     <Dashboard
+      assets={dashboardData.assets}
       portfolio={dashboardData.portfolio}
       positions={dashboardData.positions}
       summary={dashboardData.summary}
@@ -31,12 +32,13 @@ async function loadDashboardData(): Promise<DashboardData> {
     }
 
     const portfolio = portfolios[0];
-    const [summary, positions] = await Promise.all([
+    const [assets, summary, positions] = await Promise.all([
+      getAssets(),
       getPortfolioSummary(portfolio.id),
       getPortfolioPositions(portfolio.id),
     ]);
 
-    return { portfolio, positions, status: "ready", summary };
+    return { assets, portfolio, positions, status: "ready", summary };
   } catch {
     return { status: "backend-error" };
   }
@@ -46,6 +48,7 @@ type DashboardData =
   | { status: "backend-error" }
   | { status: "empty" }
   | {
+      assets: Asset[];
       portfolio: Portfolio;
       positions: Position[];
       status: "ready";

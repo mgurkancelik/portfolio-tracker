@@ -8,6 +8,40 @@ export type Portfolio = {
 
 export type AssetType = "STOCK" | "CRYPTO" | "FOREX";
 
+export type Asset = {
+  id: number;
+  symbol: string;
+  name: string;
+  assetType: AssetType;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TransactionType = "BUY" | "SELL";
+
+export type CreatePortfolioTransactionInput = {
+  assetId: number;
+  transactionType: TransactionType;
+  quantity: number;
+  unitPrice: number;
+  fee: number;
+  transactionDate: string;
+};
+
+export type PortfolioTransaction = {
+  id: number;
+  portfolioId: number;
+  assetId: number;
+  assetSymbol: string;
+  transactionType: TransactionType;
+  quantity: number;
+  unitPrice: number;
+  fee: number;
+  transactionDate: string;
+  createdAt: string;
+};
+
 export type Position = {
   portfolioId: number;
   assetId: number;

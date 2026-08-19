@@ -6,15 +6,17 @@ import {
   formatQuantity,
   formatSignedCurrency,
 } from "@/lib/format";
-import type { Portfolio, PortfolioSummary, Position } from "@/types/api";
+import { TransactionForm } from "@/components/transaction-form";
+import type { Asset, Portfolio, PortfolioSummary, Position } from "@/types/api";
 
 type DashboardProps = {
+  assets: Asset[];
   portfolio: Portfolio;
   positions: Position[];
   summary: PortfolioSummary;
 };
 
-export function Dashboard({ portfolio, positions, summary }: DashboardProps) {
+export function Dashboard({ assets, portfolio, positions, summary }: DashboardProps) {
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
       <header className="border-b border-[#d8dee8] bg-white">
@@ -108,6 +110,8 @@ export function Dashboard({ portfolio, positions, summary }: DashboardProps) {
             </div>
           )}
         </section>
+
+        <TransactionForm assets={assets} portfolioId={portfolio.id} />
 
         <section aria-labelledby="positions-heading">
           <div className="mb-4">
