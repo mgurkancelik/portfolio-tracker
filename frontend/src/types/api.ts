@@ -32,6 +32,8 @@ export type CreateAssetInput = {
   currency: string;
 };
 
+export type UpdateAssetInput = CreateAssetInput;
+
 export type CreatePortfolioTransactionInput = {
   assetId: number;
   transactionType: TransactionType;

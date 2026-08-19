@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -129,5 +130,93 @@ class AssetApiIntegrationTest {
 				.andExpect(status().isConflict());
 
 		assertEquals(1, assetRepository.count());
+	}
+
+	@Test
+	void updateAssetNormalizesFieldsAndKeepsSameSymbolTypeCombination() throws Exception {
+		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+
+		mockMvc.perform(put("/api/assets/%d".formatted(asset.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "symbol": "aapl",
+						  "name": " Apple Incorporated ",
+						  "assetType": "STOCK",
+						  "currency": "usd"
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(asset.getId().intValue()))
+				.andExpect(jsonPath("$.symbol").value("AAPL"))
+				.andExpect(jsonPath("$.name").value("Apple Incorporated"))
+				.andExpect(jsonPath("$.assetType").value("STOCK"))
+				.andExpect(jsonPath("$.currency").value("USD"));
+
+		Asset updated = assetRepository.findById(asset.getId()).orElseThrow();
+		assertEquals("AAPL", updated.getSymbol());
+		assertEquals("Apple Incorporated", updated.getName());
+		assertEquals(AssetType.STOCK, updated.getAssetType());
+		assertEquals("USD", updated.getCurrency());
+	}
+
+	@Test
+	void updateAssetRejectsDuplicateSymbolAndAssetTypeAndKeepsOriginalAsset() throws Exception {
+		Asset aapl = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+		Asset msft = assetRepository.saveAndFlush(new Asset("MSFT", "Microsoft Corp.", AssetType.STOCK, "USD"));
+
+		mockMvc.perform(put("/api/assets/%d".formatted(msft.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "symbol": "aapl",
+						  "name": "Microsoft Corp.",
+						  "assetType": "STOCK",
+						  "currency": "usd"
+						}
+						"""))
+				.andExpect(status().isConflict());
+
+		Asset unchanged = assetRepository.findById(msft.getId()).orElseThrow();
+		assertEquals(2, assetRepository.count());
+		assertEquals(aapl.getId(), assetRepository.findBySymbolAndAssetType("AAPL", AssetType.STOCK).orElseThrow().getId());
+		assertEquals("MSFT", unchanged.getSymbol());
+		assertEquals("Microsoft Corp.", unchanged.getName());
+	}
+
+	@Test
+	void updateAssetReturnsNotFoundForUnknownAsset() throws Exception {
+		mockMvc.perform(put("/api/assets/999999")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "symbol": "aapl",
+						  "name": "Apple Inc.",
+						  "assetType": "STOCK",
+						  "currency": "usd"
+						}
+						"""))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void updateAssetRejectsInvalidRequest() throws Exception {
+		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+
+		mockMvc.perform(put("/api/assets/%d".formatted(asset.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "symbol": "",
+						  "name": "",
+						  "assetType": null,
+						  "currency": "US"
+						}
+						"""))
+				.andExpect(status().isBadRequest());
+
+		Asset unchanged = assetRepository.findById(asset.getId()).orElseThrow();
+		assertEquals("AAPL", unchanged.getSymbol());
+		assertEquals("Apple Inc.", unchanged.getName());
 	}
 }

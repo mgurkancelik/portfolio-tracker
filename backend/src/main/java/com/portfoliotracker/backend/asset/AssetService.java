@@ -51,6 +51,35 @@ public class AssetService {
 				.toList();
 	}
 
+	@Transactional
+	public AssetResponse update(Long assetId, UpdateAssetRequest request) {
+		Asset asset = assetRepository.findById(assetId)
+				.orElseThrow(() -> new AssetNotFoundException(assetId));
+		String normalizedSymbol = request.symbol().toUpperCase(Locale.ROOT);
+		String normalizedCurrency = request.currency().toUpperCase(Locale.ROOT);
+		String trimmedName = request.name().trim();
+
+		assetRepository.findBySymbolAndAssetType(normalizedSymbol, request.assetType())
+				.filter(existingAsset -> !existingAsset.getId().equals(assetId))
+				.ifPresent(existingAsset -> {
+					throw new DuplicateAssetException(normalizedSymbol, request.assetType());
+				});
+
+		asset.setSymbol(normalizedSymbol);
+		asset.setName(trimmedName);
+		asset.setAssetType(request.assetType());
+		asset.setCurrency(normalizedCurrency);
+
+		try {
+			Asset saved = assetRepository.saveAndFlush(asset);
+			entityManager.refresh(saved);
+			return toResponse(saved);
+		}
+		catch (DataIntegrityViolationException ex) {
+			throw new DuplicateAssetException(normalizedSymbol, request.assetType());
+		}
+	}
+
 	private static AssetResponse toResponse(Asset asset) {
 		return new AssetResponse(
 				asset.getId(),

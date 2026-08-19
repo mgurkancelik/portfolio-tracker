@@ -8,6 +8,7 @@ import {
   createPortfolio,
   createPortfolioTransaction,
   deletePortfolioTransaction,
+  updateAsset,
   updatePortfolioTransaction,
 } from "@/lib/api";
 import type { AssetType, TransactionType } from "@/types/api";
@@ -33,6 +34,11 @@ export type UpdateTransactionState = {
 };
 
 export type AssetFormState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export type UpdateAssetState = {
   message: string;
   status: "idle" | "success" | "error";
 };
@@ -91,6 +97,37 @@ export async function createAssetAction(
   } catch (error) {
     return {
       message: error instanceof Error ? error.message : "Varlik kaydedilemedi.",
+      status: "error",
+    };
+  }
+}
+
+export async function updateAssetAction(
+  _previousState: UpdateAssetState,
+  formData: FormData,
+): Promise<UpdateAssetState> {
+  const assetId = Number(formData.get("assetId"));
+  const symbol = String(formData.get("symbol") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const assetType = String(formData.get("assetType")) as AssetType;
+  const currency = String(formData.get("currency") ?? "").trim();
+
+  if (!assetId || !symbol || !name || !isAssetType(assetType) || !/^[A-Za-z]{3}$/.test(currency)) {
+    return { message: "Varlik alanlarini kontrol et.", status: "error" };
+  }
+
+  try {
+    await updateAsset(assetId, {
+      assetType,
+      currency,
+      name,
+      symbol,
+    });
+    revalidatePath("/dashboard");
+    return { message: "Varlik guncellendi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Varlik guncellenemedi.",
       status: "error",
     };
   }

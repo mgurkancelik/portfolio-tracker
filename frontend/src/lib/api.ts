@@ -7,6 +7,7 @@ import type {
   PortfolioSummary,
   PortfolioTransaction,
   Position,
+  UpdateAssetInput,
   UpdatePortfolioTransactionInput,
 } from "@/types/api";
 
@@ -121,7 +122,16 @@ export function getAssets() {
 }
 
 export function createAsset(input: CreateAssetInput) {
-  return sendBackend<Asset>("/api/assets", input);
+  return sendBackend<Asset>("/api/assets", input, {
+    conflictMessage: "Bu sembol ve varlik tipi zaten kayitli.",
+  });
+}
+
+export function updateAsset(assetId: number, input: UpdateAssetInput) {
+  return sendBackend<Asset>(`/api/assets/${assetId}`, input, {
+    conflictMessage: "Bu sembol ve varlik tipi zaten kayitli.",
+    method: "PUT",
+  });
 }
 
 export function getPortfolioSummary(portfolioId: number) {
