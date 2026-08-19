@@ -6,6 +6,7 @@ import java.util.Locale;
 import jakarta.persistence.EntityManager;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,20 @@ public class PortfolioService {
 		Portfolio saved = portfolioRepository.saveAndFlush(portfolio);
 		entityManager.refresh(saved);
 		return toResponse(saved);
+	}
+
+	@Transactional
+	public void deletePortfolio(Long portfolioId) {
+		Portfolio portfolio = portfolioRepository.findById(portfolioId)
+				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
+
+		try {
+			portfolioRepository.delete(portfolio);
+			portfolioRepository.flush();
+		}
+		catch (DataIntegrityViolationException ex) {
+			throw new PortfolioInUseException(portfolioId);
+		}
 	}
 
 	private static PortfolioResponse toResponse(Portfolio portfolio) {

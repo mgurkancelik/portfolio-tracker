@@ -3,7 +3,12 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { updatePortfolioAction, type UpdatePortfolioState } from "@/app/dashboard/actions";
+import {
+  deletePortfolioAction,
+  updatePortfolioAction,
+  type DeletePortfolioState,
+  type UpdatePortfolioState,
+} from "@/app/dashboard/actions";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
 import type { Portfolio } from "@/types/api";
 
@@ -13,6 +18,11 @@ type PortfolioHeaderProps = {
 };
 
 const initialUpdateState: UpdatePortfolioState = {
+  message: "",
+  status: "idle",
+};
+
+const initialDeleteState: DeletePortfolioState = {
   message: "",
   status: "idle",
 };
@@ -31,13 +41,16 @@ export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps)
             <h1 className="min-w-0 break-words text-2xl font-semibold text-[#102033] sm:text-3xl">
               {portfolio.name}
             </h1>
-            <button
-              className="h-9 w-fit rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-xs font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
-              onClick={() => setIsEditing((value) => !value)}
-              type="button"
-            >
-              {isEditing ? "Kapat" : "Düzenle"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="h-9 w-fit rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-xs font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
+                onClick={() => setIsEditing((value) => !value)}
+                type="button"
+              >
+                {isEditing ? "Kapat" : "Düzenle"}
+              </button>
+              <DeletePortfolioForm portfolio={portfolio} />
+            </div>
           </div>
 
           {isEditing ? (
@@ -58,6 +71,28 @@ export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps)
         </div>
       </div>
     </header>
+  );
+}
+
+function DeletePortfolioForm({ portfolio }: { portfolio: Portfolio }) {
+  const [state, formAction] = useActionState(deletePortfolioAction, initialDeleteState);
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-col items-start gap-1"
+      onSubmit={(event) => {
+        if (!window.confirm(`${portfolio.name} portföyü silinsin mi?`)) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input name="portfolioId" type="hidden" value={portfolio.id} />
+      <DeleteButton />
+      {state.status === "error" ? (
+        <span className="max-w-56 text-xs font-medium text-[#b42318]">{state.message}</span>
+      ) : null}
+    </form>
   );
 }
 
@@ -134,6 +169,20 @@ function FormMessage({ state }: { state: UpdatePortfolioState }) {
     >
       {state.message}
     </span>
+  );
+}
+
+function DeleteButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      className="h-9 rounded-md border border-[#fecaca] bg-[#fff1f1] px-3 text-xs font-semibold text-[#b42318] transition hover:bg-[#fee2e2] disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={pending}
+      type="submit"
+    >
+      {pending ? "Siliniyor" : "Sil"}
+    </button>
   );
 }
 

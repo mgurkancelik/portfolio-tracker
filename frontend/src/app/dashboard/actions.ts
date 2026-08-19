@@ -8,6 +8,7 @@ import {
   createPortfolio,
   createPortfolioTransaction,
   deleteAsset,
+  deletePortfolio,
   deletePortfolioTransaction,
   updateAsset,
   updatePortfolio,
@@ -31,6 +32,11 @@ export type DeleteTransactionState = {
 };
 
 export type DeleteAssetState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export type DeletePortfolioState = {
   message: string;
   status: "idle" | "success" | "error";
 };
@@ -109,6 +115,29 @@ export async function updatePortfolioAction(
       status: "error",
     };
   }
+}
+
+export async function deletePortfolioAction(
+  _previousState: DeletePortfolioState,
+  formData: FormData,
+): Promise<DeletePortfolioState> {
+  const portfolioId = Number(formData.get("portfolioId"));
+
+  if (!portfolioId) {
+    return { message: "Silinecek portfoy bulunamadi.", status: "error" };
+  }
+
+  try {
+    await deletePortfolio(portfolioId);
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Portfoy silinemedi.",
+      status: "error",
+    };
+  }
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
 
 export async function createAssetAction(

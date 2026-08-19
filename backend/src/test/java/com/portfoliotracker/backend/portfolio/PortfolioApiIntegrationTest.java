@@ -2,11 +2,22 @@ package com.portfoliotracker.backend.portfolio;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
+import com.portfoliotracker.backend.asset.Asset;
+import com.portfoliotracker.backend.asset.AssetRepository;
+import com.portfoliotracker.backend.asset.AssetType;
+import com.portfoliotracker.backend.transaction.PortfolioTransaction;
+import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
+import com.portfoliotracker.backend.transaction.TransactionType;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +51,12 @@ class PortfolioApiIntegrationTest {
 	@Autowired
 	private PortfolioRepository portfolioRepository;
 
+	@Autowired
+	private AssetRepository assetRepository;
+
+	@Autowired
+	private PortfolioTransactionRepository transactionRepository;
+
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -51,6 +68,8 @@ class PortfolioApiIntegrationTest {
 
 	@BeforeEach
 	void deletePortfolios() {
+		transactionRepository.deleteAll();
+		assetRepository.deleteAll();
 		portfolioRepository.deleteAll();
 	}
 
@@ -154,5 +173,41 @@ class PortfolioApiIntegrationTest {
 		Portfolio unchanged = portfolioRepository.findById(portfolio.getId()).orElseThrow();
 		assertEquals("Uzun Vadeli", unchanged.getName());
 		assertEquals("TRY", unchanged.getBaseCurrency());
+	}
+
+	@Test
+	void deletePortfolioRemovesUnusedPortfolio() throws Exception {
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+
+		mockMvc.perform(delete("/api/portfolios/%d".formatted(portfolio.getId())))
+				.andExpect(status().isNoContent());
+
+		assertEquals(0, portfolioRepository.count());
+	}
+
+	@Test
+	void deletePortfolioReturnsNotFoundForUnknownPortfolio() throws Exception {
+		mockMvc.perform(delete("/api/portfolios/999999"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void deletePortfolioRejectsPortfolioUsedByTransactions() throws Exception {
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD"));
+		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+		transactionRepository.saveAndFlush(new PortfolioTransaction(
+				portfolio,
+				asset,
+				TransactionType.BUY,
+				new BigDecimal("10.00000000"),
+				new BigDecimal("180.00000000"),
+				new BigDecimal("1.00000000"),
+				OffsetDateTime.now()));
+
+		mockMvc.perform(delete("/api/portfolios/%d".formatted(portfolio.getId())))
+				.andExpect(status().isConflict());
+
+		assertEquals(1, portfolioRepository.count());
+		assertEquals(1, transactionRepository.count());
 	}
 }

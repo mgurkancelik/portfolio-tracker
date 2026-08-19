@@ -127,6 +127,12 @@ export function updatePortfolio(portfolioId: number, input: UpdatePortfolioInput
   });
 }
 
+export function deletePortfolio(portfolioId: number) {
+  return deleteBackend(`/api/portfolios/${portfolioId}`, {
+    conflictMessage: "Bu portfoy islem gecmisinde kullaniliyor.",
+  });
+}
+
 export function getAssets() {
   return fetchBackend<Asset[]>("/api/assets");
 }
