@@ -1,14 +1,8 @@
-import type { ReactNode } from "react";
-
-import {
-  formatCurrency,
-  formatPercentage,
-  formatQuantity,
-  formatSignedCurrency,
-} from "@/lib/format";
+import { formatCurrency, formatSignedCurrency } from "@/lib/format";
 import { AssetForm } from "@/components/asset-form";
 import { PortfolioForm } from "@/components/portfolio-form";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
+import { PositionTable } from "@/components/position-table";
 import { TransactionHistory } from "@/components/transaction-history";
 import { TransactionForm } from "@/components/transaction-form";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
@@ -139,73 +133,7 @@ export function Dashboard({
           transactions={transactions}
         />
 
-
-        <section aria-labelledby="positions-heading">
-          <div className="mb-4">
-            <h2 id="positions-heading" className="text-xl font-semibold text-[#102033]">
-              Pozisyonlar
-            </h2>
-          </div>
-
-          {positions.length === 0 ? (
-            <EmptyPanel text="Henüz açık pozisyon yok." />
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-[#d8dee8] bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-                  <thead className="bg-[#f7f9fc] text-xs uppercase tracking-[0.12em] text-[#64748b]">
-                    <tr>
-                      <TableHeader>Symbol</TableHeader>
-                      <TableHeader>Type</TableHeader>
-                      <TableHeader align="right">Quantity</TableHeader>
-                      <TableHeader align="right">Average Cost</TableHeader>
-                      <TableHeader align="right">Current Price</TableHeader>
-                      <TableHeader align="right">Market Value</TableHeader>
-                      <TableHeader align="right">Unrealized P/L</TableHeader>
-                      <TableHeader align="right">Realized P/L</TableHeader>
-                      <TableHeader align="right">Return %</TableHeader>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#e2e8f0]">
-                    {positions.map((position) => (
-                      <tr key={position.assetId} className="hover:bg-[#fafcff]">
-                        <TableCell>
-                          <span className="font-semibold text-[#102033]">
-                            {position.assetSymbol}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="rounded-md bg-[#edf2f7] px-2 py-1 text-xs font-medium text-[#334155]">
-                            {position.assetType}
-                          </span>
-                        </TableCell>
-                        <TableCell align="right">{formatQuantity(position.quantity)}</TableCell>
-                        <TableCell align="right">
-                          {formatCurrency(position.averageCost, position.currency, 8)}
-                        </TableCell>
-                        <TableCell align="right">
-                          {formatCurrency(position.currentPrice, position.currency)}
-                        </TableCell>
-                        <TableCell align="right">
-                          {formatCurrency(position.marketValue, position.currency)}
-                        </TableCell>
-                        <TableCell align="right" tone={position.unrealizedProfit}>
-                          {formatSignedCurrency(position.unrealizedProfit, position.currency)}
-                        </TableCell>
-                        <TableCell align="right" tone={position.realizedProfit}>
-                          {formatSignedCurrency(position.realizedProfit, position.currency)}
-                        </TableCell>
-                        <TableCell align="right" tone={position.unrealizedProfitPercentage}>
-                          {formatPercentage(position.unrealizedProfitPercentage)}
-                        </TableCell>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </section>
+        <PositionTable positions={positions} />
       </main>
     </div>
   );
@@ -281,40 +209,6 @@ function SummaryMetric({
       </p>
       <p className={`mt-2 text-lg font-semibold ${toneClass(tone)}`}>{value}</p>
     </div>
-  );
-}
-
-function TableHeader({
-  align = "left",
-  children,
-}: {
-  align?: "left" | "right";
-  children: ReactNode;
-}) {
-  return (
-    <th className={`px-4 py-3 font-semibold ${align === "right" ? "text-right" : "text-left"}`}>
-      {children}
-    </th>
-  );
-}
-
-function TableCell({
-  align = "left",
-  children,
-  tone,
-}: {
-  align?: "left" | "right";
-  children: ReactNode;
-  tone?: number;
-}) {
-  return (
-    <td
-      className={`whitespace-nowrap px-4 py-4 ${
-        align === "right" ? "text-right" : "text-left"
-      } ${toneClass(tone)}`}
-    >
-      {children}
-    </td>
   );
 }
 
