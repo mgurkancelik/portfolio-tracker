@@ -10,6 +10,9 @@ import {
   type UpdatePortfolioState,
 } from "@/app/dashboard/actions";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { NavLink } from "@/components/ui/nav-link";
+import { dashboardSections, productMenuItems } from "@/data/navigation";
 import type { Portfolio } from "@/types/api";
 
 type PortfolioHeaderProps = {
@@ -26,15 +29,6 @@ const initialDeleteState: DeletePortfolioState = {
   message: "",
   status: "idle",
 };
-
-const dashboardSections = [
-  { href: "#overview", label: "Genel" },
-  { href: "#summary", label: "Özet" },
-  { href: "#portfolio", label: "Portföy" },
-  { href: "#assets", label: "Varlıklar" },
-  { href: "#transactions", label: "İşlemler" },
-  { href: "#positions", label: "Pozisyonlar" },
-];
 
 export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -88,23 +82,25 @@ export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps)
           aria-label="Dashboard bölümleri"
           className="flex flex-col gap-3 border-t border-white/10 pt-3 lg:flex-row lg:items-center lg:justify-between"
         >
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu
+              ariaLabel="Ürünler menüsü"
+              items={productMenuItems}
+              label="Ürünler"
+            />
+            <NavLink className="px-4" href="#summary">
+              Atlas
+            </NavLink>
+            <span aria-hidden="true" className="hidden h-6 w-px bg-white/15 lg:block" />
             {dashboardSections.map((section) => (
-              <a
-                key={section.href}
-                className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-[#dbeafe] transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none focus:ring-2 focus:ring-[#93c5fd]"
-                href={section.href}
-              >
+              <NavLink key={section.href} href={section.href}>
                 {section.label}
-              </a>
+              </NavLink>
             ))}
           </div>
-          <a
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#facc15] px-5 text-sm font-semibold text-[#102033] shadow-sm transition hover:bg-[#fde047] focus:outline-none focus:ring-2 focus:ring-[#fef08a] focus:ring-offset-2 focus:ring-offset-[#102033]"
-            href="#portfolio"
-          >
+          <NavLink className="px-5" href="#portfolio" variant="cta">
             Kayıt Ol
-          </a>
+          </NavLink>
         </nav>
       </div>
     </header>
