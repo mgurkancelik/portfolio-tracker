@@ -7,7 +7,6 @@ export const productMenuItems = [
   { href: "#transactions", label: "VİOP" },
   { href: "#transactions", label: "Opsiyon" },
   { href: "#assets", label: "Varantlar" },
-  { href: "#summary", label: "Midas Pro" },
 ];
 
 export const dashboardSections = [
