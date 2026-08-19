@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
+import { FilterResetButton } from "@/components/filter-reset-button";
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format";
 import type { Asset, PortfolioTransaction, TransactionType } from "@/types/api";
 
@@ -21,6 +22,7 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("ALL");
+  const hasActiveFilters = assetFilter !== "ALL" || typeFilter !== "ALL";
   const currencyByAssetId = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset.currency])),
     [assets],
@@ -45,7 +47,7 @@ export function TransactionHistory({
         </div>
 
         {transactions.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(208px,1fr)_160px_auto] lg:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Asset
@@ -78,6 +80,8 @@ export function TransactionHistory({
                 <option value="SELL">SELL</option>
               </select>
             </label>
+
+            <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
           </div>
         ) : null}
       </div>
@@ -132,6 +136,11 @@ export function TransactionHistory({
       )}
     </section>
   );
+
+  function resetFilters() {
+    setAssetFilter("ALL");
+    setTypeFilter("ALL");
+  }
 }
 
 function EmptyPanel({ text }: { text: string }) {

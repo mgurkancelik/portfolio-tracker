@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
+import { FilterResetButton } from "@/components/filter-reset-button";
 import {
   formatCurrency,
   formatPercentage,
@@ -20,6 +21,7 @@ type AssetTypeFilter = "ALL" | AssetType;
 export function PositionTable({ positions }: PositionTableProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
   const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
+  const hasActiveFilters = assetFilter !== "ALL" || assetTypeFilter !== "ALL";
   const availableAssetTypes = useMemo(
     () => Array.from(new Set(positions.map((position) => position.assetType))).sort(),
     [positions],
@@ -45,7 +47,7 @@ export function PositionTable({ positions }: PositionTableProps) {
         </div>
 
         {positions.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(208px,1fr)_160px_auto] lg:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Asset
@@ -81,6 +83,8 @@ export function PositionTable({ positions }: PositionTableProps) {
                 ))}
               </select>
             </label>
+
+            <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
           </div>
         ) : null}
       </div>
@@ -147,6 +151,11 @@ export function PositionTable({ positions }: PositionTableProps) {
       )}
     </section>
   );
+
+  function resetFilters() {
+    setAssetFilter("ALL");
+    setAssetTypeFilter("ALL");
+  }
 }
 
 function EmptyPanel({ text }: { text: string }) {

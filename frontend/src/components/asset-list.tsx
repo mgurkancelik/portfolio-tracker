@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
+import { FilterResetButton } from "@/components/filter-reset-button";
 import type { Asset, AssetType } from "@/types/api";
 
 type AssetListProps = {
@@ -15,6 +16,8 @@ export function AssetList({ assets }: AssetListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
   const [currencyFilter, setCurrencyFilter] = useState("ALL");
+  const hasActiveFilters =
+    searchTerm.trim() !== "" || assetTypeFilter !== "ALL" || currencyFilter !== "ALL";
   const availableAssetTypes = useMemo(
     () => Array.from(new Set(assets.map((asset) => asset.assetType))).sort(),
     [assets],
@@ -48,7 +51,7 @@ export function AssetList({ assets }: AssetListProps) {
         </div>
 
         {assets.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-[minmax(180px,1fr)_160px_160px]">
+          <div className="grid gap-3 sm:grid-cols-[minmax(180px,1fr)_160px_160px] xl:grid-cols-[minmax(180px,1fr)_160px_160px_auto] xl:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Search
@@ -97,6 +100,8 @@ export function AssetList({ assets }: AssetListProps) {
                 ))}
               </select>
             </label>
+
+            <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
           </div>
         ) : null}
       </div>
@@ -145,6 +150,12 @@ export function AssetList({ assets }: AssetListProps) {
       )}
     </section>
   );
+
+  function resetFilters() {
+    setSearchTerm("");
+    setAssetTypeFilter("ALL");
+    setCurrencyFilter("ALL");
+  }
 }
 
 function TableHeader({ children }: { children: ReactNode }) {
