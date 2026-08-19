@@ -98,6 +98,10 @@ export function getPortfolioPositions(portfolioId: number) {
   return fetchBackend<Position[]>(`/api/portfolios/${portfolioId}/positions`);
 }
 
+export function getPortfolioTransactions(portfolioId: number) {
+  return fetchBackend<PortfolioTransaction[]>(`/api/portfolios/${portfolioId}/transactions`);
+}
+
 export function createPortfolioTransaction(
   portfolioId: number,
   input: CreatePortfolioTransactionInput,

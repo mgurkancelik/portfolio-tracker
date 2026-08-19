@@ -31,6 +31,13 @@ export function formatPercentage(value: number) {
   return `${prefix}${formatNumber(value, 2)}%`;
 }
 
+export function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function formatNumber(value: number, maximumFractionDigits: number) {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits,
