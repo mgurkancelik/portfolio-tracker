@@ -11,11 +11,15 @@ type AssetListProps = {
 };
 
 type AssetTypeFilter = "ALL" | AssetType;
+type AssetSortKey = "assetType" | "currency" | "name" | "symbol";
+type SortDirection = "ASC" | "DESC";
 
 export function AssetList({ assets }: AssetListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
   const [currencyFilter, setCurrencyFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<AssetSortKey>("symbol");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("ASC");
   const hasActiveFilters =
     searchTerm.trim() !== "" || assetTypeFilter !== "ALL" || currencyFilter !== "ALL";
   const availableAssetTypes = useMemo(
@@ -37,6 +41,9 @@ export function AssetList({ assets }: AssetListProps) {
     const matchesCurrency = currencyFilter === "ALL" || asset.currency === currencyFilter;
     return matchesSearch && matchesType && matchesCurrency;
   });
+  const sortedAssets = [...filteredAssets].sort((left, right) =>
+    compareAssets(left, right, sortKey, sortDirection),
+  );
 
   return (
     <section aria-labelledby="assets-heading">
@@ -51,7 +58,7 @@ export function AssetList({ assets }: AssetListProps) {
         </div>
 
         {assets.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-[minmax(180px,1fr)_160px_160px] xl:grid-cols-[minmax(180px,1fr)_160px_160px_auto] xl:items-end">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_150px_150px_150px_120px_auto] xl:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Search
@@ -101,6 +108,36 @@ export function AssetList({ assets }: AssetListProps) {
               </select>
             </label>
 
+            <label className="flex min-w-36 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Sort
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortKey(event.target.value as AssetSortKey)}
+                value={sortKey}
+              >
+                <option value="symbol">Symbol</option>
+                <option value="name">Name</option>
+                <option value="assetType">Type</option>
+                <option value="currency">Currency</option>
+              </select>
+            </label>
+
+            <label className="flex min-w-28 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Direction
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                value={sortDirection}
+              >
+                <option value="ASC">A-Z</option>
+                <option value="DESC">Z-A</option>
+              </select>
+            </label>
+
             <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
           </div>
         ) : null}
@@ -127,7 +164,7 @@ export function AssetList({ assets }: AssetListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0]">
-                {filteredAssets.map((asset) => (
+                {sortedAssets.map((asset) => (
                   <tr key={asset.id} className="hover:bg-[#fafcff]">
                     <TableCell>
                       <span className="font-semibold text-[#102033]">{asset.symbol}</span>
@@ -164,4 +201,17 @@ function TableHeader({ children }: { children: ReactNode }) {
 
 function TableCell({ children }: { children: ReactNode }) {
   return <td className="whitespace-nowrap px-4 py-4 text-[#334155]">{children}</td>;
+}
+
+function compareAssets(
+  left: Asset,
+  right: Asset,
+  sortKey: AssetSortKey,
+  sortDirection: SortDirection,
+) {
+  const result = left[sortKey].localeCompare(right[sortKey], "en-US", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  return sortDirection === "ASC" ? result : -result;
 }
