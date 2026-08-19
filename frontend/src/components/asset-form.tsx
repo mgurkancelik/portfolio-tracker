@@ -4,32 +4,28 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createAssetAction, type AssetFormState } from "@/app/dashboard/actions";
+import { CollapsibleFormSection } from "@/components/collapsible-form-section";
 
 const initialState: AssetFormState = {
   message: "",
   status: "idle",
 };
 
-export function AssetForm() {
+type AssetFormProps = {
+  defaultOpen?: boolean;
+};
+
+export function AssetForm({ defaultOpen = false }: AssetFormProps) {
   const [state, formAction] = useActionState(createAssetAction, initialState);
 
   return (
-    <section aria-labelledby="asset-form-heading">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 id="asset-form-heading" className="text-xl font-semibold text-[#102033]">
-            Varlık Ekle
-          </h2>
-          <p className="text-sm text-[#64748b]">
-            İşlem girebilmek için hisse, kripto veya parite tanımı oluştur.
-          </p>
-        </div>
-      </div>
-
-      <form
-        action={formAction}
-        className="rounded-lg border border-[#d8dee8] bg-white p-5 shadow-sm"
-      >
+    <CollapsibleFormSection
+      defaultOpen={defaultOpen}
+      description="İşlem girebilmek için hisse, kripto veya parite tanımı oluştur."
+      headingId="asset-form-heading"
+      title="Varlık Ekle"
+    >
+      <form action={formAction}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <label className="flex flex-col gap-2">
             <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
@@ -94,7 +90,7 @@ export function AssetForm() {
           <SubmitButton />
         </div>
       </form>
-    </section>
+    </CollapsibleFormSection>
   );
 }
 

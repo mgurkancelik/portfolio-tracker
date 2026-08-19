@@ -157,7 +157,7 @@ export function EmptyPortfolioState() {
             İlk portföyü oluşturduktan sonra dashboard burada açılır.
           </p>
         </div>
-        <PortfolioForm />
+        <PortfolioForm defaultOpen />
       </div>
     </main>
   );

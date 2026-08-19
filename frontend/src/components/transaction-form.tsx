@@ -4,10 +4,12 @@ import { useActionState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createTransactionAction, type TransactionFormState } from "@/app/dashboard/actions";
+import { CollapsibleFormSection } from "@/components/collapsible-form-section";
 import type { Asset } from "@/types/api";
 
 type TransactionFormProps = {
   assets: Asset[];
+  defaultOpen?: boolean;
   portfolioId: number;
 };
 
@@ -16,28 +18,23 @@ const initialState: TransactionFormState = {
   status: "idle",
 };
 
-export function TransactionForm({ assets, portfolioId }: TransactionFormProps) {
+export function TransactionForm({
+  assets,
+  defaultOpen = false,
+  portfolioId,
+}: TransactionFormProps) {
   const [state, formAction] = useActionState(createTransactionAction, initialState);
   const defaultDateTime = useMemo(() => toDateTimeLocalValue(new Date()), []);
   const hasAssets = assets.length > 0;
 
   return (
-    <section aria-labelledby="transaction-form-heading">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 id="transaction-form-heading" className="text-xl font-semibold text-[#102033]">
-            İşlem Ekle
-          </h2>
-          <p className="text-sm text-[#64748b]">
-            Mevcut varlıklardan birine BUY veya SELL işlemi gir.
-          </p>
-        </div>
-      </div>
-
-      <form
-        action={formAction}
-        className="rounded-lg border border-[#d8dee8] bg-white p-5 shadow-sm"
-      >
+    <CollapsibleFormSection
+      defaultOpen={defaultOpen}
+      description="Mevcut varlıklardan birine BUY veya SELL işlemi gir."
+      headingId="transaction-form-heading"
+      title="İşlem Ekle"
+    >
+      <form action={formAction}>
         <input name="portfolioId" type="hidden" value={portfolioId} />
 
         {!hasAssets ? (
@@ -111,7 +108,7 @@ export function TransactionForm({ assets, portfolioId }: TransactionFormProps) {
           </>
         )}
       </form>
-    </section>
+    </CollapsibleFormSection>
   );
 }
 
