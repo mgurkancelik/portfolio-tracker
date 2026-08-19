@@ -1,6 +1,7 @@
 import { formatCurrency, formatSignedCurrency } from "@/lib/format";
 import { AssetList } from "@/components/asset-list";
 import { AssetForm } from "@/components/asset-form";
+import { DashboardOverview } from "@/components/dashboard-overview";
 import { PortfolioForm } from "@/components/portfolio-form";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
 import { PositionTable } from "@/components/position-table";
@@ -52,6 +53,13 @@ export function Dashboard({
       </header>
 
       <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+        <DashboardOverview
+          assetCount={assets.length}
+          openPositionCount={summary.openPositionCount}
+          portfolioCount={portfolios.length}
+          transactionCount={transactions.length}
+        />
+
         <section aria-labelledby="summary-heading">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
