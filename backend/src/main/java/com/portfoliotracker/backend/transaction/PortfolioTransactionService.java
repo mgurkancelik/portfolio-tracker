@@ -1,10 +1,12 @@
 package com.portfoliotracker.backend.transaction;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.portfoliotracker.backend.asset.Asset;
@@ -92,6 +94,39 @@ public class PortfolioTransactionService {
 	}
 
 	@Transactional
+	public PortfolioTransactionResponse update(
+			Long portfolioId,
+			Long transactionId,
+			UpdatePortfolioTransactionRequest request) {
+		ensurePortfolioExists(portfolioId);
+		PortfolioTransaction transaction = transactionRepository.findByIdAndPortfolioId(transactionId, portfolioId)
+				.orElseThrow(() -> new PortfolioTransactionNotFoundException(transactionId));
+		Asset asset = assetRepository.findById(request.assetId())
+				.orElseThrow(() -> new AssetNotFoundException(request.assetId()));
+		Long previousAssetId = transaction.getAsset().getId();
+		Long updatedAssetId = asset.getId();
+		List<PortfolioTransaction> previousAssetHistory = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, previousAssetId);
+		List<PortfolioTransaction> updatedAssetHistory = Objects.equals(previousAssetId, updatedAssetId)
+				? previousAssetHistory
+				: transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						portfolioId,
+						updatedAssetId);
+
+		transaction.setAsset(asset);
+		transaction.setTransactionType(request.transactionType());
+		transaction.setQuantity(request.quantity());
+		transaction.setUnitPrice(request.unitPrice());
+		transaction.setFee(request.fee());
+		transaction.setTransactionDate(request.transactionDate());
+
+		validateUpdatedHistories(transaction, previousAssetId, updatedAssetId, previousAssetHistory, updatedAssetHistory);
+		PortfolioTransaction saved = transactionRepository.saveAndFlush(transaction);
+		entityManager.refresh(saved);
+		return toResponse(saved);
+	}
+
+	@Transactional
 	public void delete(Long portfolioId, Long transactionId) {
 		ensurePortfolioExists(portfolioId);
 		PortfolioTransaction transaction = transactionRepository.findByIdAndPortfolioId(transactionId, portfolioId)
@@ -105,6 +140,26 @@ public class PortfolioTransactionService {
 
 		positionCalculator.calculate(remainingHistory);
 		transactionRepository.delete(transaction);
+	}
+
+	private void validateUpdatedHistories(
+			PortfolioTransaction updatedTransaction,
+			Long previousAssetId,
+			Long updatedAssetId,
+			List<PortfolioTransaction> previousAssetHistory,
+			List<PortfolioTransaction> updatedAssetHistory) {
+		if (Objects.equals(previousAssetId, updatedAssetId)) {
+			positionCalculator.calculate(previousAssetHistory);
+			return;
+		}
+
+		positionCalculator.calculate(previousAssetHistory.stream()
+				.filter(historyTransaction -> !historyTransaction.getId().equals(updatedTransaction.getId()))
+				.toList());
+
+		List<PortfolioTransaction> nextAssetHistory = new ArrayList<>(updatedAssetHistory);
+		nextAssetHistory.add(updatedTransaction);
+		positionCalculator.calculate(nextAssetHistory);
 	}
 
 	@Transactional(readOnly = true)

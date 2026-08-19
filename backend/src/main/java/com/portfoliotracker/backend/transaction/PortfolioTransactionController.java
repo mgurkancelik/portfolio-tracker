@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +44,14 @@ public class PortfolioTransactionController {
 	@GetMapping("/transactions")
 	public List<PortfolioTransactionResponse> listTransactions(@PathVariable Long portfolioId) {
 		return transactionService.findAll(portfolioId);
+	}
+
+	@PutMapping("/transactions/{transactionId}")
+	public PortfolioTransactionResponse updateTransaction(
+			@PathVariable Long portfolioId,
+			@PathVariable Long transactionId,
+			@Valid @RequestBody UpdatePortfolioTransactionRequest request) {
+		return transactionService.update(portfolioId, transactionId, request);
 	}
 
 	@DeleteMapping("/transactions/{transactionId}")

@@ -8,6 +8,7 @@ import {
   createPortfolio,
   createPortfolioTransaction,
   deletePortfolioTransaction,
+  updatePortfolioTransaction,
 } from "@/lib/api";
 import type { AssetType, TransactionType } from "@/types/api";
 
@@ -22,6 +23,11 @@ export type TransactionFormState = {
 };
 
 export type DeleteTransactionState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export type UpdateTransactionState = {
   message: string;
   status: "idle" | "success" | "error";
 };
@@ -152,6 +158,51 @@ export async function deleteTransactionAction(
   } catch (error) {
     return {
       message: error instanceof Error ? error.message : "Islem silinemedi.",
+      status: "error",
+    };
+  }
+}
+
+export async function updateTransactionAction(
+  _previousState: UpdateTransactionState,
+  formData: FormData,
+): Promise<UpdateTransactionState> {
+  const portfolioId = Number(formData.get("portfolioId"));
+  const transactionId = Number(formData.get("transactionId"));
+  const assetId = Number(formData.get("assetId"));
+  const transactionType = String(formData.get("transactionType")) as TransactionType;
+  const quantity = Number(formData.get("quantity"));
+  const unitPrice = Number(formData.get("unitPrice"));
+  const fee = Number(formData.get("fee"));
+  const transactionDateInput = String(formData.get("transactionDate"));
+
+  if (!portfolioId || !transactionId || !assetId || !isTransactionType(transactionType)) {
+    return { message: "Portfolio, varlik veya islem tipi eksik.", status: "error" };
+  }
+
+  if (!isPositive(quantity) || !isPositive(unitPrice) || !isPositiveOrZero(fee)) {
+    return { message: "Miktar, fiyat ve komisyon alanlarini kontrol et.", status: "error" };
+  }
+
+  const transactionDate = toIsoDateTime(transactionDateInput);
+  if (!transactionDate) {
+    return { message: "Islem tarihi gecersiz.", status: "error" };
+  }
+
+  try {
+    await updatePortfolioTransaction(portfolioId, transactionId, {
+      assetId,
+      fee,
+      quantity,
+      transactionDate,
+      transactionType,
+      unitPrice,
+    });
+    revalidatePath("/dashboard");
+    return { message: "Islem guncellendi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Islem guncellenemedi.",
       status: "error",
     };
   }

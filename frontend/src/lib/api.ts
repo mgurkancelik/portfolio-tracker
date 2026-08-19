@@ -7,6 +7,7 @@ import type {
   PortfolioSummary,
   PortfolioTransaction,
   Position,
+  UpdatePortfolioTransactionInput,
 } from "@/types/api";
 
 const jsonHeaders = {
@@ -41,7 +42,14 @@ async function fetchBackend<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function sendBackend<T>(path: string, body: unknown): Promise<T> {
+async function sendBackend<T>(
+  path: string,
+  body: unknown,
+  options: {
+    conflictMessage?: string;
+    method?: "POST" | "PUT";
+  } = {},
+): Promise<T> {
   const url = `${getBackendBaseUrl()}${path}`;
 
   let response: Response;
@@ -53,14 +61,14 @@ async function sendBackend<T>(path: string, body: unknown): Promise<T> {
         ...jsonHeaders,
         "Content-Type": "application/json",
       },
-      method: "POST",
+      method: options.method ?? "POST",
     });
   } catch {
     throw new Error("Backend'e ulasilamadi.");
   }
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(response.status));
+    throw new Error(getErrorMessage(response.status, options.conflictMessage));
   }
 
   return response.json() as Promise<T>;
@@ -133,6 +141,21 @@ export function createPortfolioTransaction(
   input: CreatePortfolioTransactionInput,
 ) {
   return sendBackend<PortfolioTransaction>(`/api/portfolios/${portfolioId}/transactions`, input);
+}
+
+export function updatePortfolioTransaction(
+  portfolioId: number,
+  transactionId: number,
+  input: UpdatePortfolioTransactionInput,
+) {
+  return sendBackend<PortfolioTransaction>(
+    `/api/portfolios/${portfolioId}/transactions/${transactionId}`,
+    input,
+    {
+      conflictMessage: "Bu guncelleme pozisyon gecmisini gecersiz yapar.",
+      method: "PUT",
+    },
+  );
 }
 
 export function deletePortfolioTransaction(portfolioId: number, transactionId: number) {

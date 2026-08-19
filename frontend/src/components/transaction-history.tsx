@@ -1,11 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useActionState } from "react";
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { deleteTransactionAction, type DeleteTransactionState } from "@/app/dashboard/actions";
+import {
+  deleteTransactionAction,
+  updateTransactionAction,
+  type DeleteTransactionState,
+  type UpdateTransactionState,
+} from "@/app/dashboard/actions";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format";
 import type { Asset, PortfolioTransaction, TransactionType } from "@/types/api";
@@ -27,6 +32,7 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("ALL");
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
   const hasActiveFilters = assetFilter !== "ALL" || typeFilter !== "ALL";
   const currencyByAssetId = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset.currency])),
@@ -98,7 +104,7 @@ export function TransactionHistory({
       ) : (
         <div className="overflow-hidden rounded-lg border border-[#d8dee8] bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
               <thead className="bg-[#f7f9fc] text-xs uppercase tracking-[0.12em] text-[#64748b]">
                 <tr>
                   <TableHeader>Date</TableHeader>
@@ -113,29 +119,60 @@ export function TransactionHistory({
               <tbody className="divide-y divide-[#e2e8f0]">
                 {filteredTransactions.map((transaction) => {
                   const currency = currencyByAssetId.get(transaction.assetId) ?? baseCurrency;
+                  const isEditing = editingTransactionId === transaction.id;
 
                   return (
-                    <tr key={transaction.id} className="hover:bg-[#fafcff]">
-                      <TableCell>{formatDateTime(transaction.transactionDate)}</TableCell>
-                      <TableCell>
-                        <span className="font-semibold text-[#102033]">
-                          {transaction.assetSymbol}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <TransactionTypeBadge type={transaction.transactionType} />
-                      </TableCell>
-                      <TableCell align="right">{formatQuantity(transaction.quantity)}</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(transaction.unitPrice, currency, 8)}
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(transaction.fee, currency, 8)}
-                      </TableCell>
-                      <TableCell align="right">
-                        <DeleteTransactionForm portfolioId={portfolioId} transaction={transaction} />
-                      </TableCell>
-                    </tr>
+                    <Fragment key={transaction.id}>
+                      <tr className="hover:bg-[#fafcff]">
+                        <TableCell>{formatDateTime(transaction.transactionDate)}</TableCell>
+                        <TableCell>
+                          <span className="font-semibold text-[#102033]">
+                            {transaction.assetSymbol}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <TransactionTypeBadge type={transaction.transactionType} />
+                        </TableCell>
+                        <TableCell align="right">{formatQuantity(transaction.quantity)}</TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(transaction.unitPrice, currency, 8)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(transaction.fee, currency, 8)}
+                        </TableCell>
+                        <TableCell align="right">
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="h-9 rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-xs font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
+                                onClick={() =>
+                                  setEditingTransactionId(isEditing ? null : transaction.id)
+                                }
+                                type="button"
+                              >
+                                {isEditing ? "Kapat" : "Düzenle"}
+                              </button>
+                              <DeleteTransactionForm
+                                portfolioId={portfolioId}
+                                transaction={transaction}
+                              />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </tr>
+                      {isEditing ? (
+                        <tr className="bg-[#f8fafc]">
+                          <td className="px-4 py-4" colSpan={7}>
+                            <UpdateTransactionForm
+                              assets={assets}
+                              onCancel={() => setEditingTransactionId(null)}
+                              portfolioId={portfolioId}
+                              transaction={transaction}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -156,6 +193,188 @@ const initialDeleteState: DeleteTransactionState = {
   message: "",
   status: "idle",
 };
+
+const initialUpdateState: UpdateTransactionState = {
+  message: "",
+  status: "idle",
+};
+
+function UpdateTransactionForm({
+  assets,
+  onCancel,
+  portfolioId,
+  transaction,
+}: {
+  assets: Asset[];
+  onCancel: () => void;
+  portfolioId: number;
+  transaction: PortfolioTransaction;
+}) {
+  const [state, formAction] = useActionState(updateTransactionAction, initialUpdateState);
+
+  return (
+    <form action={formAction} className="rounded-md border border-[#d8dee8] bg-white p-4">
+      <input name="portfolioId" type="hidden" value={portfolioId} />
+      <input name="transactionId" type="hidden" value={transaction.id} />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+        <label className="flex flex-col gap-2 xl:col-span-2">
+          <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+            Asset
+          </span>
+          <select
+            className="h-10 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+            defaultValue={transaction.assetId}
+            name="assetId"
+            required
+          >
+            {assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.symbol} - {asset.assetType} - {asset.currency}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+            Type
+          </legend>
+          <div className="grid h-10 grid-cols-2 overflow-hidden rounded-md border border-[#cbd5e1] bg-[#f8fafc] p-1">
+            <label className="flex cursor-pointer items-center justify-center rounded-sm text-xs font-semibold text-[#15803d] has-[:checked]:bg-white has-[:checked]:shadow-sm">
+              <input
+                className="sr-only"
+                defaultChecked={transaction.transactionType === "BUY"}
+                name="transactionType"
+                type="radio"
+                value="BUY"
+              />
+              BUY
+            </label>
+            <label className="flex cursor-pointer items-center justify-center rounded-sm text-xs font-semibold text-[#b42318] has-[:checked]:bg-white has-[:checked]:shadow-sm">
+              <input
+                className="sr-only"
+                defaultChecked={transaction.transactionType === "SELL"}
+                name="transactionType"
+                type="radio"
+                value="SELL"
+              />
+              SELL
+            </label>
+          </div>
+        </fieldset>
+
+        <EditNumberField
+          defaultValue={transaction.quantity}
+          label="Quantity"
+          name="quantity"
+          step="0.00000001"
+        />
+        <EditNumberField
+          defaultValue={transaction.unitPrice}
+          label="Unit Price"
+          name="unitPrice"
+          step="0.00000001"
+        />
+        <EditNumberField
+          defaultValue={transaction.fee}
+          label="Fee"
+          min="0"
+          name="fee"
+          step="0.00000001"
+        />
+
+        <label className="flex flex-col gap-2 xl:col-span-1">
+          <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+            Date
+          </span>
+          <input
+            className="h-10 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+            defaultValue={toDateTimeLocalValue(transaction.transactionDate)}
+            name="transactionDate"
+            required
+            type="datetime-local"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <FormMessage state={state} />
+        <div className="flex justify-end gap-2">
+          <button
+            className="h-10 rounded-md border border-[#cbd5e1] bg-white px-4 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc]"
+            onClick={onCancel}
+            type="button"
+          >
+            Vazgeç
+          </button>
+          <UpdateButton />
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function EditNumberField({
+  defaultValue,
+  label,
+  min = "0.00000001",
+  name,
+  step,
+}: {
+  defaultValue: number;
+  label: string;
+  min?: string;
+  name: string;
+  step: string;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+        {label}
+      </span>
+      <input
+        className="h-10 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+        defaultValue={String(defaultValue)}
+        min={min}
+        name={name}
+        required
+        step={step}
+        type="number"
+      />
+    </label>
+  );
+}
+
+function FormMessage({ state }: { state: UpdateTransactionState }) {
+  if (state.status === "idle") {
+    return <span className="text-sm text-[#64748b]">İşlem bilgilerini düzenle.</span>;
+  }
+
+  return (
+    <span
+      className={`text-sm font-medium ${
+        state.status === "success" ? "text-[#15803d]" : "text-[#b42318]"
+      }`}
+    >
+      {state.message}
+    </span>
+  );
+}
+
+function UpdateButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      className="h-10 rounded-md bg-[#1f4f82] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#183f68] disabled:cursor-not-allowed disabled:bg-[#94a3b8]"
+      disabled={pending}
+      type="submit"
+    >
+      {pending ? "Güncelleniyor" : "Güncelle"}
+    </button>
+  );
+}
 
 function DeleteTransactionForm({
   portfolioId,
@@ -247,4 +466,13 @@ function TransactionTypeBadge({ type }: { type: PortfolioTransaction["transactio
       {type}
     </span>
   );
+}
+
+function toDateTimeLocalValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }

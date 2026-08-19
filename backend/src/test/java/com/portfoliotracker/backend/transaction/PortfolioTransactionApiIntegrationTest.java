@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -252,6 +254,104 @@ class PortfolioTransactionApiIntegrationTest {
 		assertEquals(List.of(TransactionType.BUY), transactions.stream()
 				.map(PortfolioTransaction::getTransactionType)
 				.toList());
+	}
+
+	@Test
+	void updateTransactionChangesTransactionAndRecalculatesPosition() throws Exception {
+		TestContext context = createContext();
+		createTransaction(context, "BUY", "10", "100", "10", date(1))
+				.andExpect(status().isCreated());
+		createTransaction(context, "BUY", "5", "120", "5", date(2))
+				.andExpect(status().isCreated());
+		createTransaction(context, "SELL", "3", "140", "2", date(3))
+				.andExpect(status().isCreated());
+		PortfolioTransaction secondBuy = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						context.portfolio.getId(),
+						context.asset.getId())
+				.get(1);
+
+		mockMvc.perform(put(transactionPath(context.portfolio, secondBuy.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validRequest(context.asset.getId(), "BUY", "8", "125", "4", date(2))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(secondBuy.getId().intValue()))
+				.andExpect(jsonPath("$.assetId").value(context.asset.getId().intValue()))
+				.andExpect(jsonPath("$.transactionType").value("BUY"))
+				.andExpect(content().string(containsString("\"quantity\":8.00000000")))
+				.andExpect(content().string(containsString("\"unitPrice\":125.00000000")))
+				.andExpect(content().string(containsString("\"fee\":4.00000000")));
+
+		PortfolioTransaction updated = transactionRepository.findById(secondBuy.getId()).orElseThrow();
+		assertEquals(0, updated.getQuantity().compareTo(new BigDecimal("8")));
+		assertEquals(0, updated.getUnitPrice().compareTo(new BigDecimal("125")));
+		assertEquals(0, updated.getFee().compareTo(new BigDecimal("4")));
+
+		mockMvc.perform(get(positionPath(context)))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("\"quantity\":15.00000000")))
+				.andExpect(content().string(containsString("\"averageCost\":111.88888889")))
+				.andExpect(content().string(containsString("\"costBasis\":1678.33333333")))
+				.andExpect(content().string(containsString("\"realizedProfit\":82.33333333")));
+	}
+
+	@Test
+	void updateTransactionReturnsConflictAndKeepsOriginalTransactionWhenHistoryWouldOversell() throws Exception {
+		TestContext context = createContext();
+		createTransaction(context, "BUY", "10", "100", "0", date(1))
+				.andExpect(status().isCreated());
+		createTransaction(context, "SELL", "8", "110", "0", date(2))
+				.andExpect(status().isCreated());
+		PortfolioTransaction buyTransaction = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						context.portfolio.getId(),
+						context.asset.getId())
+				.get(0);
+
+		mockMvc.perform(put(transactionPath(context.portfolio, buyTransaction.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validRequest(context.asset.getId(), "BUY", "5", "100", "0", date(1))))
+				.andExpect(status().isConflict());
+
+		PortfolioTransaction unchanged = transactionRepository.findById(buyTransaction.getId()).orElseThrow();
+		assertEquals(2, transactionRepository.count());
+		assertEquals(0, unchanged.getQuantity().compareTo(new BigDecimal("10")));
+	}
+
+	@Test
+	void updateTransactionReturnsNotFoundForUnknownTransaction() throws Exception {
+		TestContext context = createContext();
+
+		mockMvc.perform(put(transactionPath(context.portfolio, 999999L))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validRequest(context.asset.getId(), "BUY", "10", "100", "0", date(1))))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void invalidUpdateRequestReturnsBadRequest() throws Exception {
+		TestContext context = createContext();
+		createTransaction(context, "BUY", "10", "100", "0", date(1))
+				.andExpect(status().isCreated());
+		PortfolioTransaction transaction = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						context.portfolio.getId(),
+						context.asset.getId())
+				.get(0);
+
+		mockMvc.perform(put(transactionPath(context.portfolio, transaction.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "assetId": %d,
+						  "transactionType": "BUY",
+						  "quantity": 0,
+						  "unitPrice": 0,
+						  "fee": -1,
+						  "transactionDate": "%s"
+						}
+						""".formatted(context.asset.getId(), date(1))))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test

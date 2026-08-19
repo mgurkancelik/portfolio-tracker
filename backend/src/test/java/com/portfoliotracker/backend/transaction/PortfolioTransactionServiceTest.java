@@ -1,7 +1,9 @@
 package com.portfoliotracker.backend.transaction;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,6 +29,7 @@ import jakarta.persistence.EntityManager;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -59,6 +62,127 @@ class PortfolioTransactionServiceTest {
 				positionValuationCalculator,
 				marketDataProvider,
 				entityManager);
+	}
+
+	@Test
+	void updateSavesTransactionAfterValidatingUpdatedHistory() {
+		Portfolio portfolio = portfolio(1L);
+		Asset asset = asset(10L);
+		PortfolioTransaction transactionToUpdate = transaction(100L, portfolio, asset, TransactionType.BUY, "10", 1);
+		PortfolioTransaction sellTransaction = transaction(101L, portfolio, asset, TransactionType.SELL, "3", 2);
+		List<PortfolioTransaction> history = List.of(transactionToUpdate, sellTransaction);
+		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
+				.thenReturn(Optional.of(transactionToUpdate));
+		when(assetRepository.findById(asset.getId())).thenReturn(Optional.of(asset));
+		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+				portfolio.getId(),
+				asset.getId()))
+				.thenReturn(history);
+		when(transactionRepository.saveAndFlush(transactionToUpdate)).thenReturn(transactionToUpdate);
+
+		service.update(
+				portfolio.getId(),
+				transactionToUpdate.getId(),
+				request(asset.getId(), TransactionType.BUY, "12", "110", "1", 1));
+
+		verify(positionCalculator).calculate(history);
+		verify(transactionRepository).saveAndFlush(transactionToUpdate);
+		verify(entityManager).refresh(transactionToUpdate);
+		assertEquals(asset, transactionToUpdate.getAsset());
+		assertEquals(TransactionType.BUY, transactionToUpdate.getTransactionType());
+		assertEquals(0, transactionToUpdate.getQuantity().compareTo(new BigDecimal("12")));
+		assertEquals(0, transactionToUpdate.getUnitPrice().compareTo(new BigDecimal("110")));
+		assertEquals(0, transactionToUpdate.getFee().compareTo(new BigDecimal("1")));
+	}
+
+	@Test
+	void updateValidatesPreviousAndUpdatedAssetHistoriesWhenAssetChanges() {
+		Portfolio portfolio = portfolio(1L);
+		Asset previousAsset = asset(10L);
+		Asset updatedAsset = asset(11L);
+		PortfolioTransaction transactionToUpdate = transaction(
+				100L,
+				portfolio,
+				previousAsset,
+				TransactionType.BUY,
+				"10",
+				1);
+		PortfolioTransaction updatedAssetTransaction = transaction(
+				101L,
+				portfolio,
+				updatedAsset,
+				TransactionType.BUY,
+				"4",
+				1);
+		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
+				.thenReturn(Optional.of(transactionToUpdate));
+		when(assetRepository.findById(updatedAsset.getId())).thenReturn(Optional.of(updatedAsset));
+		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+				portfolio.getId(),
+				previousAsset.getId()))
+				.thenReturn(List.of(transactionToUpdate));
+		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+				portfolio.getId(),
+				updatedAsset.getId()))
+				.thenReturn(List.of(updatedAssetTransaction));
+		when(transactionRepository.saveAndFlush(transactionToUpdate)).thenReturn(transactionToUpdate);
+
+		service.update(
+				portfolio.getId(),
+				transactionToUpdate.getId(),
+				request(updatedAsset.getId(), TransactionType.BUY, "2", "90", "0", 2));
+
+		InOrder inOrder = inOrder(positionCalculator, transactionRepository);
+		inOrder.verify(positionCalculator).calculate(List.of());
+		inOrder.verify(positionCalculator).calculate(List.of(updatedAssetTransaction, transactionToUpdate));
+		inOrder.verify(transactionRepository).saveAndFlush(transactionToUpdate);
+		assertEquals(updatedAsset, transactionToUpdate.getAsset());
+	}
+
+	@Test
+	void updateDoesNotSaveTransactionWhenPreviousAssetHistoryWouldOversell() {
+		Portfolio portfolio = portfolio(1L);
+		Asset previousAsset = asset(10L);
+		Asset updatedAsset = asset(11L);
+		PortfolioTransaction transactionToUpdate = transaction(
+				100L,
+				portfolio,
+				previousAsset,
+				TransactionType.BUY,
+				"10",
+				1);
+		PortfolioTransaction remainingSellTransaction = transaction(
+				101L,
+				portfolio,
+				previousAsset,
+				TransactionType.SELL,
+				"8",
+				2);
+		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
+				.thenReturn(Optional.of(transactionToUpdate));
+		when(assetRepository.findById(updatedAsset.getId())).thenReturn(Optional.of(updatedAsset));
+		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+				portfolio.getId(),
+				previousAsset.getId()))
+				.thenReturn(List.of(transactionToUpdate, remainingSellTransaction));
+		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+				portfolio.getId(),
+				updatedAsset.getId()))
+				.thenReturn(List.of());
+		when(positionCalculator.calculate(List.of(remainingSellTransaction)))
+				.thenThrow(new InsufficientPositionException("Insufficient position."));
+
+		assertThrows(
+				InsufficientPositionException.class,
+				() -> service.update(
+						portfolio.getId(),
+						transactionToUpdate.getId(),
+						request(updatedAsset.getId(), TransactionType.BUY, "2", "90", "0", 2)));
+
+		verify(transactionRepository, never()).saveAndFlush(transactionToUpdate);
 	}
 
 	@Test
@@ -133,5 +257,21 @@ class PortfolioTransactionServiceTest {
 				OffsetDateTime.of(2026, 8, dayOfMonth, 10, 0, 0, 0, ZoneOffset.UTC));
 		ReflectionTestUtils.setField(transaction, "id", id);
 		return transaction;
+	}
+
+	private static UpdatePortfolioTransactionRequest request(
+			Long assetId,
+			TransactionType transactionType,
+			String quantity,
+			String unitPrice,
+			String fee,
+			int dayOfMonth) {
+		return new UpdatePortfolioTransactionRequest(
+				assetId,
+				transactionType,
+				new BigDecimal(quantity),
+				new BigDecimal(unitPrice),
+				new BigDecimal(fee),
+				OffsetDateTime.of(2026, 8, dayOfMonth, 10, 0, 0, 0, ZoneOffset.UTC));
 	}
 }

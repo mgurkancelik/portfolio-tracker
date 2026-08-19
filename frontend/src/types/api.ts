@@ -41,6 +41,8 @@ export type CreatePortfolioTransactionInput = {
   transactionDate: string;
 };
 
+export type UpdatePortfolioTransactionInput = CreatePortfolioTransactionInput;
+
 export type PortfolioTransaction = {
   id: number;
   portfolioId: number;
