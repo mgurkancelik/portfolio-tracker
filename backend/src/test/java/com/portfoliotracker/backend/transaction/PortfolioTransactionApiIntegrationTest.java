@@ -3,6 +3,7 @@ package com.portfoliotracker.backend.transaction;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -254,6 +255,60 @@ class PortfolioTransactionApiIntegrationTest {
 	}
 
 	@Test
+	void deleteTransactionRemovesTransactionAndRecalculatesPosition() throws Exception {
+		TestContext context = createContext();
+		createTransaction(context, "BUY", "10", "100", "10", date(1))
+				.andExpect(status().isCreated());
+		createTransaction(context, "BUY", "5", "120", "5", date(2))
+				.andExpect(status().isCreated());
+		createTransaction(context, "SELL", "3", "140", "2", date(3))
+				.andExpect(status().isCreated());
+
+		PortfolioTransaction sellTransaction = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						context.portfolio.getId(),
+						context.asset.getId())
+				.get(2);
+
+		mockMvc.perform(delete(transactionPath(context.portfolio, sellTransaction.getId())))
+				.andExpect(status().isNoContent());
+
+		assertEquals(2, transactionRepository.count());
+		mockMvc.perform(get(positionPath(context)))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("\"quantity\":15.00000000")))
+				.andExpect(content().string(containsString("\"costBasis\":1615.00000000")))
+				.andExpect(content().string(containsString("\"realizedProfit\":0.00000000")));
+	}
+
+	@Test
+	void deleteTransactionReturnsConflictAndKeepsTransactionWhenRemainingHistoryWouldOversell() throws Exception {
+		TestContext context = createContext();
+		createTransaction(context, "BUY", "10", "100", "0", date(1))
+				.andExpect(status().isCreated());
+		createTransaction(context, "SELL", "8", "110", "0", date(2))
+				.andExpect(status().isCreated());
+		PortfolioTransaction buyTransaction = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
+						context.portfolio.getId(),
+						context.asset.getId())
+				.get(0);
+
+		mockMvc.perform(delete(transactionPath(context.portfolio, buyTransaction.getId())))
+				.andExpect(status().isConflict());
+
+		assertEquals(2, transactionRepository.count());
+	}
+
+	@Test
+	void deleteTransactionReturnsNotFoundForUnknownTransaction() throws Exception {
+		Portfolio portfolio = createPortfolio();
+
+		mockMvc.perform(delete(transactionPath(portfolio, 999999L)))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void invalidRequestReturnsBadRequest() throws Exception {
 		TestContext context = createContext();
 
@@ -364,6 +419,10 @@ class PortfolioTransactionApiIntegrationTest {
 
 	private static String transactionsPath(Portfolio portfolio) {
 		return "/api/portfolios/%d/transactions".formatted(portfolio.getId());
+	}
+
+	private static String transactionPath(Portfolio portfolio, Long transactionId) {
+		return "/api/portfolios/%d/transactions/%d".formatted(portfolio.getId(), transactionId);
 	}
 
 	private static String positionsPath(Portfolio portfolio) {

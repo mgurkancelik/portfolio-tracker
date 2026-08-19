@@ -91,6 +91,22 @@ public class PortfolioTransactionService {
 				.toList();
 	}
 
+	@Transactional
+	public void delete(Long portfolioId, Long transactionId) {
+		ensurePortfolioExists(portfolioId);
+		PortfolioTransaction transaction = transactionRepository.findByIdAndPortfolioId(transactionId, portfolioId)
+				.orElseThrow(() -> new PortfolioTransactionNotFoundException(transactionId));
+		Long assetId = transaction.getAsset().getId();
+		List<PortfolioTransaction> remainingHistory = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, assetId)
+				.stream()
+				.filter(historyTransaction -> !historyTransaction.getId().equals(transactionId))
+				.toList();
+
+		positionCalculator.calculate(remainingHistory);
+		transactionRepository.delete(transaction);
+	}
+
 	@Transactional(readOnly = true)
 	public PositionResponse getPosition(Long portfolioId, Long assetId) {
 		ensurePortfolioExists(portfolioId);

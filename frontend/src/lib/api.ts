@@ -66,7 +66,28 @@ async function sendBackend<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function getErrorMessage(status: number) {
+async function deleteBackend(path: string): Promise<void> {
+  const url = `${getBackendBaseUrl()}${path}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      cache: "no-store",
+      headers: jsonHeaders,
+      method: "DELETE",
+    });
+  } catch {
+    throw new Error("Backend'e ulasilamadi.");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(response.status, "Bu islem silinirse pozisyon gecmisi gecersiz olur."),
+    );
+  }
+}
+
+function getErrorMessage(status: number, conflictMessage = "Satis miktari mevcut pozisyondan fazla.") {
   if (status === 400) {
     return "Form alanlarini kontrol et.";
   }
@@ -74,7 +95,7 @@ function getErrorMessage(status: number) {
     return "Portfoy veya varlik bulunamadi.";
   }
   if (status === 409) {
-    return "Satis miktari mevcut pozisyondan fazla.";
+    return conflictMessage;
   }
   return `Backend API ${status} dondu.`;
 }
@@ -112,4 +133,8 @@ export function createPortfolioTransaction(
   input: CreatePortfolioTransactionInput,
 ) {
   return sendBackend<PortfolioTransaction>(`/api/portfolios/${portfolioId}/transactions`, input);
+}
+
+export function deletePortfolioTransaction(portfolioId: number, transactionId: number) {
+  return deleteBackend(`/api/portfolios/${portfolioId}/transactions/${transactionId}`);
 }

@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createAsset, createPortfolio, createPortfolioTransaction } from "@/lib/api";
+import {
+  createAsset,
+  createPortfolio,
+  createPortfolioTransaction,
+  deletePortfolioTransaction,
+} from "@/lib/api";
 import type { AssetType, TransactionType } from "@/types/api";
 
 export type PortfolioFormState = {
@@ -12,6 +17,11 @@ export type PortfolioFormState = {
 };
 
 export type TransactionFormState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export type DeleteTransactionState = {
   message: string;
   status: "idle" | "success" | "error";
 };
@@ -119,6 +129,29 @@ export async function createTransactionAction(
   } catch (error) {
     return {
       message: error instanceof Error ? error.message : "Islem kaydedilemedi.",
+      status: "error",
+    };
+  }
+}
+
+export async function deleteTransactionAction(
+  _previousState: DeleteTransactionState,
+  formData: FormData,
+): Promise<DeleteTransactionState> {
+  const portfolioId = Number(formData.get("portfolioId"));
+  const transactionId = Number(formData.get("transactionId"));
+
+  if (!portfolioId || !transactionId) {
+    return { message: "Silinecek islem bulunamadi.", status: "error" };
+  }
+
+  try {
+    await deletePortfolioTransaction(portfolioId, transactionId);
+    revalidatePath("/dashboard");
+    return { message: "Islem silindi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Islem silinemedi.",
       status: "error",
     };
   }

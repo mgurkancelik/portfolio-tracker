@@ -1,8 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useActionState } from "react";
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 
+import { deleteTransactionAction, type DeleteTransactionState } from "@/app/dashboard/actions";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/format";
 import type { Asset, PortfolioTransaction, TransactionType } from "@/types/api";
@@ -10,6 +13,7 @@ import type { Asset, PortfolioTransaction, TransactionType } from "@/types/api";
 type TransactionHistoryProps = {
   assets: Asset[];
   baseCurrency: string;
+  portfolioId: number;
   transactions: PortfolioTransaction[];
 };
 
@@ -18,6 +22,7 @@ type TransactionTypeFilter = "ALL" | TransactionType;
 export function TransactionHistory({
   assets,
   baseCurrency,
+  portfolioId,
   transactions,
 }: TransactionHistoryProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
@@ -102,6 +107,7 @@ export function TransactionHistory({
                   <TableHeader align="right">Quantity</TableHeader>
                   <TableHeader align="right">Unit Price</TableHeader>
                   <TableHeader align="right">Fee</TableHeader>
+                  <TableHeader align="right">Action</TableHeader>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0]">
@@ -126,6 +132,9 @@ export function TransactionHistory({
                       <TableCell align="right">
                         {formatCurrency(transaction.fee, currency, 8)}
                       </TableCell>
+                      <TableCell align="right">
+                        <DeleteTransactionForm portfolioId={portfolioId} transaction={transaction} />
+                      </TableCell>
                     </tr>
                   );
                 })}
@@ -141,6 +150,56 @@ export function TransactionHistory({
     setAssetFilter("ALL");
     setTypeFilter("ALL");
   }
+}
+
+const initialDeleteState: DeleteTransactionState = {
+  message: "",
+  status: "idle",
+};
+
+function DeleteTransactionForm({
+  portfolioId,
+  transaction,
+}: {
+  portfolioId: number;
+  transaction: PortfolioTransaction;
+}) {
+  const [state, formAction] = useActionState(deleteTransactionAction, initialDeleteState);
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-col items-end gap-1"
+      onSubmit={(event) => {
+        if (!window.confirm(`${transaction.assetSymbol} işlemi silinsin mi?`)) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input name="portfolioId" type="hidden" value={portfolioId} />
+      <input name="transactionId" type="hidden" value={transaction.id} />
+      <DeleteButton />
+      {state.status === "error" ? (
+        <span className="max-w-40 whitespace-normal text-right text-xs font-medium text-[#b42318]">
+          {state.message}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+function DeleteButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      className="h-9 rounded-md border border-[#fecaca] bg-[#fff1f1] px-3 text-xs font-semibold text-[#b42318] transition hover:bg-[#fee2e2] disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={pending}
+      type="submit"
+    >
+      {pending ? "Siliniyor" : "Sil"}
+    </button>
+  );
 }
 
 function EmptyPanel({ text }: { text: string }) {

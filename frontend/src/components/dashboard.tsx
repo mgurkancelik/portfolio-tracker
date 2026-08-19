@@ -141,6 +141,7 @@ export function Dashboard({
         <TransactionHistory
           assets={assets}
           baseCurrency={portfolio.baseCurrency}
+          portfolioId={portfolio.id}
           transactions={transactions}
         />
 

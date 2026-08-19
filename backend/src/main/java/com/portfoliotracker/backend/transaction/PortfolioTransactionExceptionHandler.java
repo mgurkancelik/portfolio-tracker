@@ -11,7 +11,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(assignableTypes = PortfolioTransactionController.class)
 public class PortfolioTransactionExceptionHandler {
 
-	@ExceptionHandler({PortfolioNotFoundException.class, AssetNotFoundException.class})
+	@ExceptionHandler({
+			PortfolioNotFoundException.class,
+			AssetNotFoundException.class,
+			PortfolioTransactionNotFoundException.class})
 	ResponseEntity<Void> handleNotFound() {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 	}
