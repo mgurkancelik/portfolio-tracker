@@ -1,4 +1,5 @@
 import { formatCurrency, formatSignedCurrency } from "@/lib/format";
+import { AssetList } from "@/components/asset-list";
 import { AssetForm } from "@/components/asset-form";
 import { PortfolioForm } from "@/components/portfolio-form";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
@@ -124,6 +125,8 @@ export function Dashboard({
         <PortfolioForm />
 
         <AssetForm />
+
+        <AssetList assets={assets} />
 
         <TransactionForm assets={assets} portfolioId={portfolio.id} />
 
