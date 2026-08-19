@@ -2,11 +2,21 @@ package com.portfoliotracker.backend.asset;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
+import com.portfoliotracker.backend.portfolio.Portfolio;
+import com.portfoliotracker.backend.portfolio.PortfolioRepository;
+import com.portfoliotracker.backend.transaction.PortfolioTransaction;
+import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
+import com.portfoliotracker.backend.transaction.TransactionType;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +50,12 @@ class AssetApiIntegrationTest {
 	@Autowired
 	private AssetRepository assetRepository;
 
+	@Autowired
+	private PortfolioRepository portfolioRepository;
+
+	@Autowired
+	private PortfolioTransactionRepository transactionRepository;
+
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -51,7 +67,9 @@ class AssetApiIntegrationTest {
 
 	@BeforeEach
 	void deleteAssets() {
+		transactionRepository.deleteAll();
 		assetRepository.deleteAll();
+		portfolioRepository.deleteAll();
 	}
 
 	@Test
@@ -218,5 +236,41 @@ class AssetApiIntegrationTest {
 		Asset unchanged = assetRepository.findById(asset.getId()).orElseThrow();
 		assertEquals("AAPL", unchanged.getSymbol());
 		assertEquals("Apple Inc.", unchanged.getName());
+	}
+
+	@Test
+	void deleteAssetRemovesUnusedAsset() throws Exception {
+		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+
+		mockMvc.perform(delete("/api/assets/%d".formatted(asset.getId())))
+				.andExpect(status().isNoContent());
+
+		assertEquals(0, assetRepository.count());
+	}
+
+	@Test
+	void deleteAssetReturnsNotFoundForUnknownAsset() throws Exception {
+		mockMvc.perform(delete("/api/assets/999999"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void deleteAssetRejectsAssetUsedByTransactions() throws Exception {
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD"));
+		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+		transactionRepository.saveAndFlush(new PortfolioTransaction(
+				portfolio,
+				asset,
+				TransactionType.BUY,
+				new BigDecimal("10.00000000"),
+				new BigDecimal("180.00000000"),
+				new BigDecimal("1.00000000"),
+				OffsetDateTime.now()));
+
+		mockMvc.perform(delete("/api/assets/%d".formatted(asset.getId())))
+				.andExpect(status().isConflict());
+
+		assertEquals(1, assetRepository.count());
+		assertEquals(1, transactionRepository.count());
 	}
 }

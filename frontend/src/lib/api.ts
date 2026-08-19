@@ -76,7 +76,12 @@ async function sendBackend<T>(
   return response.json() as Promise<T>;
 }
 
-async function deleteBackend(path: string): Promise<void> {
+async function deleteBackend(
+  path: string,
+  options: {
+    conflictMessage?: string;
+  } = {},
+): Promise<void> {
   const url = `${getBackendBaseUrl()}${path}`;
 
   let response: Response;
@@ -91,9 +96,7 @@ async function deleteBackend(path: string): Promise<void> {
   }
 
   if (!response.ok) {
-    throw new Error(
-      getErrorMessage(response.status, "Bu islem silinirse pozisyon gecmisi gecersiz olur."),
-    );
+    throw new Error(getErrorMessage(response.status, options.conflictMessage));
   }
 }
 
@@ -141,6 +144,12 @@ export function updateAsset(assetId: number, input: UpdateAssetInput) {
   });
 }
 
+export function deleteAsset(assetId: number) {
+  return deleteBackend(`/api/assets/${assetId}`, {
+    conflictMessage: "Bu varlik islem gecmisinde kullaniliyor.",
+  });
+}
+
 export function getPortfolioSummary(portfolioId: number) {
   return fetchBackend<PortfolioSummary>(`/api/portfolios/${portfolioId}/summary`);
 }
@@ -176,5 +185,7 @@ export function updatePortfolioTransaction(
 }
 
 export function deletePortfolioTransaction(portfolioId: number, transactionId: number) {
-  return deleteBackend(`/api/portfolios/${portfolioId}/transactions/${transactionId}`);
+  return deleteBackend(`/api/portfolios/${portfolioId}/transactions/${transactionId}`, {
+    conflictMessage: "Bu islem silinirse pozisyon gecmisi gecersiz olur.",
+  });
 }

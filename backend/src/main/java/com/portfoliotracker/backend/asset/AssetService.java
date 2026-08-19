@@ -80,6 +80,20 @@ public class AssetService {
 		}
 	}
 
+	@Transactional
+	public void delete(Long assetId) {
+		Asset asset = assetRepository.findById(assetId)
+				.orElseThrow(() -> new AssetNotFoundException(assetId));
+
+		try {
+			assetRepository.delete(asset);
+			assetRepository.flush();
+		}
+		catch (DataIntegrityViolationException ex) {
+			throw new AssetInUseException(assetId);
+		}
+	}
+
 	private static AssetResponse toResponse(Asset asset) {
 		return new AssetResponse(
 				asset.getId(),

@@ -7,6 +7,7 @@ import {
   createAsset,
   createPortfolio,
   createPortfolioTransaction,
+  deleteAsset,
   deletePortfolioTransaction,
   updateAsset,
   updatePortfolio,
@@ -25,6 +26,11 @@ export type TransactionFormState = {
 };
 
 export type DeleteTransactionState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export type DeleteAssetState = {
   message: string;
   status: "idle" | "success" | "error";
 };
@@ -161,6 +167,28 @@ export async function updateAssetAction(
   } catch (error) {
     return {
       message: error instanceof Error ? error.message : "Varlik guncellenemedi.",
+      status: "error",
+    };
+  }
+}
+
+export async function deleteAssetAction(
+  _previousState: DeleteAssetState,
+  formData: FormData,
+): Promise<DeleteAssetState> {
+  const assetId = Number(formData.get("assetId"));
+
+  if (!assetId) {
+    return { message: "Silinecek varlik bulunamadi.", status: "error" };
+  }
+
+  try {
+    await deleteAsset(assetId);
+    revalidatePath("/dashboard");
+    return { message: "Varlik silindi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Varlik silinemedi.",
       status: "error",
     };
   }

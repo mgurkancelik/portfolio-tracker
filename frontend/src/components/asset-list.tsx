@@ -5,7 +5,12 @@ import { useActionState } from "react";
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { updateAssetAction, type UpdateAssetState } from "@/app/dashboard/actions";
+import {
+  deleteAssetAction,
+  updateAssetAction,
+  type DeleteAssetState,
+  type UpdateAssetState,
+} from "@/app/dashboard/actions";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import type { Asset, AssetType } from "@/types/api";
 
@@ -188,13 +193,18 @@ export function AssetList({ assets }: AssetListProps) {
                           <span className="font-medium text-[#334155]">{asset.currency}</span>
                         </TableCell>
                         <TableCell align="right">
-                          <button
-                            className="h-9 rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-xs font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
-                            onClick={() => setEditingAssetId(isEditing ? null : asset.id)}
-                            type="button"
-                          >
-                            {isEditing ? "Kapat" : "Düzenle"}
-                          </button>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="h-9 rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-xs font-semibold text-[#1d4ed8] transition hover:bg-[#dbeafe]"
+                                onClick={() => setEditingAssetId(isEditing ? null : asset.id)}
+                                type="button"
+                              >
+                                {isEditing ? "Kapat" : "Düzenle"}
+                              </button>
+                              <DeleteAssetForm asset={asset} />
+                            </div>
+                          </div>
                         </TableCell>
                       </tr>
                       {isEditing ? (
@@ -223,6 +233,11 @@ export function AssetList({ assets }: AssetListProps) {
 }
 
 const initialUpdateState: UpdateAssetState = {
+  message: "",
+  status: "idle",
+};
+
+const initialDeleteState: DeleteAssetState = {
   message: "",
   status: "idle",
 };
@@ -270,6 +285,30 @@ function UpdateAssetForm({ asset, onCancel }: { asset: Asset; onCancel: () => vo
           <UpdateButton />
         </div>
       </div>
+    </form>
+  );
+}
+
+function DeleteAssetForm({ asset }: { asset: Asset }) {
+  const [state, formAction] = useActionState(deleteAssetAction, initialDeleteState);
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-col items-end gap-1"
+      onSubmit={(event) => {
+        if (!window.confirm(`${asset.symbol} varlığı silinsin mi?`)) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input name="assetId" type="hidden" value={asset.id} />
+      <DeleteButton />
+      {state.status === "error" ? (
+        <span className="max-w-48 whitespace-normal text-right text-xs font-medium text-[#b42318]">
+          {state.message}
+        </span>
+      ) : null}
     </form>
   );
 }
@@ -327,6 +366,20 @@ function UpdateButton() {
       type="submit"
     >
       {pending ? "Güncelleniyor" : "Güncelle"}
+    </button>
+  );
+}
+
+function DeleteButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      className="h-9 rounded-md border border-[#fecaca] bg-[#fff1f1] px-3 text-xs font-semibold text-[#b42318] transition hover:bg-[#fee2e2] disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={pending}
+      type="submit"
+    >
+      {pending ? "Siliniyor" : "Sil"}
     </button>
   );
 }
