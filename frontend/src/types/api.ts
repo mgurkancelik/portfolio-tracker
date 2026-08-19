@@ -25,6 +25,8 @@ export type CreatePortfolioInput = {
   baseCurrency: string;
 };
 
+export type UpdatePortfolioInput = CreatePortfolioInput;
+
 export type CreateAssetInput = {
   symbol: string;
   name: string;

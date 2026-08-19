@@ -37,6 +37,20 @@ public class PortfolioService {
 				.toList();
 	}
 
+	@Transactional
+	public PortfolioResponse updatePortfolio(Long portfolioId, UpdatePortfolioRequest request) {
+		Portfolio portfolio = portfolioRepository.findById(portfolioId)
+				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
+		String normalizedBaseCurrency = request.baseCurrency().toUpperCase(Locale.ROOT);
+
+		portfolio.setName(request.name().trim());
+		portfolio.setBaseCurrency(normalizedBaseCurrency);
+
+		Portfolio saved = portfolioRepository.saveAndFlush(portfolio);
+		entityManager.refresh(saved);
+		return toResponse(saved);
+	}
+
 	private static PortfolioResponse toResponse(Portfolio portfolio) {
 		return new PortfolioResponse(
 				portfolio.getId(),

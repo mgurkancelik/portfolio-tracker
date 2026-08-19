@@ -3,7 +3,7 @@ import { AssetList } from "@/components/asset-list";
 import { AssetForm } from "@/components/asset-form";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { PortfolioForm } from "@/components/portfolio-form";
-import { PortfolioSwitcher } from "@/components/portfolio-switcher";
+import { PortfolioHeader } from "@/components/portfolio-header";
 import { PositionTable } from "@/components/position-table";
 import { TransactionHistory } from "@/components/transaction-history";
 import { TransactionForm } from "@/components/transaction-form";
@@ -28,29 +28,7 @@ export function Dashboard({
 }: DashboardProps) {
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
-      <header className="border-b border-[#d8dee8] bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#5c6b7a]">
-              Portfolio Tracker
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold text-[#102033] sm:text-3xl">
-              {portfolio.name}
-            </h1>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <PortfolioSwitcher portfolios={portfolios} selectedPortfolioId={portfolio.id} />
-            <div className="rounded-md border border-[#cfd8e3] bg-[#f9fafb] px-4 py-3 text-left sm:text-right">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#687789]">
-                Base Currency
-              </p>
-              <p className="mt-1 text-lg font-semibold text-[#102033]">
-                {portfolio.baseCurrency}
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PortfolioHeader portfolio={portfolio} portfolios={portfolios} />
 
       <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <DashboardOverview

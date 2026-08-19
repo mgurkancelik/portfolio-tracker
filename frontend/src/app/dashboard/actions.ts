@@ -9,6 +9,7 @@ import {
   createPortfolioTransaction,
   deletePortfolioTransaction,
   updateAsset,
+  updatePortfolio,
   updatePortfolioTransaction,
 } from "@/lib/api";
 import type { AssetType, TransactionType } from "@/types/api";
@@ -43,6 +44,11 @@ export type UpdateAssetState = {
   status: "idle" | "success" | "error";
 };
 
+export type UpdatePortfolioState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
 export async function createPortfolioAction(
   _previousState: PortfolioFormState,
   formData: FormData,
@@ -70,6 +76,33 @@ export async function createPortfolioAction(
 
   revalidatePath("/dashboard");
   redirect(nextUrl);
+}
+
+export async function updatePortfolioAction(
+  _previousState: UpdatePortfolioState,
+  formData: FormData,
+): Promise<UpdatePortfolioState> {
+  const portfolioId = Number(formData.get("portfolioId"));
+  const name = String(formData.get("name") ?? "").trim();
+  const baseCurrency = String(formData.get("baseCurrency") ?? "").trim();
+
+  if (!portfolioId || !name || name.length > 100 || !/^[A-Za-z]{3}$/.test(baseCurrency)) {
+    return { message: "Portfoy alanlarini kontrol et.", status: "error" };
+  }
+
+  try {
+    await updatePortfolio(portfolioId, {
+      baseCurrency,
+      name,
+    });
+    revalidatePath("/dashboard");
+    return { message: "Portfoy guncellendi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Portfoy guncellenemedi.",
+      status: "error",
+    };
+  }
 }
 
 export async function createAssetAction(

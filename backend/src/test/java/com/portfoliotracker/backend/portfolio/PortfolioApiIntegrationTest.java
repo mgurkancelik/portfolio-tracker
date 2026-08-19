@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -97,5 +98,61 @@ class PortfolioApiIntegrationTest {
 				.andExpect(status().isBadRequest());
 
 		assertEquals(0, portfolioRepository.count());
+	}
+
+	@Test
+	void updatePortfolioNormalizesBaseCurrency() throws Exception {
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+
+		mockMvc.perform(put("/api/portfolios/%d".formatted(portfolio.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": " Büyüme ",
+						  "baseCurrency": "usd"
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(portfolio.getId().intValue()))
+				.andExpect(jsonPath("$.name").value("Büyüme"))
+				.andExpect(jsonPath("$.baseCurrency").value("USD"))
+				.andExpect(jsonPath("$.createdAt").isNotEmpty())
+				.andExpect(jsonPath("$.updatedAt").isNotEmpty());
+
+		Portfolio updated = portfolioRepository.findById(portfolio.getId()).orElseThrow();
+		assertEquals("Büyüme", updated.getName());
+		assertEquals("USD", updated.getBaseCurrency());
+	}
+
+	@Test
+	void updatePortfolioReturnsNotFoundForUnknownPortfolio() throws Exception {
+		mockMvc.perform(put("/api/portfolios/999999")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "Uzun Vadeli",
+						  "baseCurrency": "try"
+						}
+						"""))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void updatePortfolioRejectsInvalidRequest() throws Exception {
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+
+		mockMvc.perform(put("/api/portfolios/%d".formatted(portfolio.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "",
+						  "baseCurrency": "US"
+						}
+						"""))
+				.andExpect(status().isBadRequest());
+
+		Portfolio unchanged = portfolioRepository.findById(portfolio.getId()).orElseThrow();
+		assertEquals("Uzun Vadeli", unchanged.getName());
+		assertEquals("TRY", unchanged.getBaseCurrency());
 	}
 }

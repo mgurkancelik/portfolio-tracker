@@ -8,6 +8,7 @@ import type {
   PortfolioTransaction,
   Position,
   UpdateAssetInput,
+  UpdatePortfolioInput,
   UpdatePortfolioTransactionInput,
 } from "@/types/api";
 
@@ -115,6 +116,12 @@ export function getPortfolios() {
 
 export function createPortfolio(input: CreatePortfolioInput) {
   return sendBackend<Portfolio>("/api/portfolios", input);
+}
+
+export function updatePortfolio(portfolioId: number, input: UpdatePortfolioInput) {
+  return sendBackend<Portfolio>(`/api/portfolios/${portfolioId}`, input, {
+    method: "PUT",
+  });
 }
 
 export function getAssets() {
