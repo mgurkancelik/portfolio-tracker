@@ -1,9 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-import { createAsset, createPortfolioTransaction } from "@/lib/api";
+import { createAsset, createPortfolio, createPortfolioTransaction } from "@/lib/api";
 import type { AssetType, TransactionType } from "@/types/api";
+
+export type PortfolioFormState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
 
 export type TransactionFormState = {
   message: string;
@@ -14,6 +20,35 @@ export type AssetFormState = {
   message: string;
   status: "idle" | "success" | "error";
 };
+
+export async function createPortfolioAction(
+  _previousState: PortfolioFormState,
+  formData: FormData,
+): Promise<PortfolioFormState> {
+  const name = String(formData.get("name") ?? "").trim();
+  const baseCurrency = String(formData.get("baseCurrency") ?? "").trim();
+
+  if (!name || name.length > 100 || !/^[A-Za-z]{3}$/.test(baseCurrency)) {
+    return { message: "Portfoy alanlarini kontrol et.", status: "error" };
+  }
+
+  let nextUrl: string;
+  try {
+    const portfolio = await createPortfolio({
+      baseCurrency,
+      name,
+    });
+    nextUrl = `/dashboard?portfolioId=${portfolio.id}`;
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Portfoy kaydedilemedi.",
+      status: "error",
+    };
+  }
+
+  revalidatePath("/dashboard");
+  redirect(nextUrl);
+}
 
 export async function createAssetAction(
   _previousState: AssetFormState,

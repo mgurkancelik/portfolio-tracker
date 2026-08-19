@@ -8,24 +8,34 @@ import {
   formatSignedCurrency,
 } from "@/lib/format";
 import { AssetForm } from "@/components/asset-form";
+import { PortfolioForm } from "@/components/portfolio-form";
+import { PortfolioSwitcher } from "@/components/portfolio-switcher";
 import { TransactionForm } from "@/components/transaction-form";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
 
 type DashboardProps = {
   assets: Asset[];
   portfolio: Portfolio;
+  portfolios: Portfolio[];
   positions: Position[];
   summary: PortfolioSummary;
   transactions: PortfolioTransaction[];
 };
 
-export function Dashboard({ assets, portfolio, positions, summary, transactions }: DashboardProps) {
+export function Dashboard({
+  assets,
+  portfolio,
+  portfolios,
+  positions,
+  summary,
+  transactions,
+}: DashboardProps) {
   const currencyByAssetId = new Map(assets.map((asset) => [asset.id, asset.currency]));
 
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
       <header className="border-b border-[#d8dee8] bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#5c6b7a]">
               Portfolio Tracker
@@ -34,13 +44,16 @@ export function Dashboard({ assets, portfolio, positions, summary, transactions 
               {portfolio.name}
             </h1>
           </div>
-          <div className="rounded-md border border-[#cfd8e3] bg-[#f9fafb] px-4 py-3 text-right">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#687789]">
-              Base Currency
-            </p>
-            <p className="mt-1 text-lg font-semibold text-[#102033]">
-              {portfolio.baseCurrency}
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <PortfolioSwitcher portfolios={portfolios} selectedPortfolioId={portfolio.id} />
+            <div className="rounded-md border border-[#cfd8e3] bg-[#f9fafb] px-4 py-3 text-left sm:text-right">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#687789]">
+                Base Currency
+              </p>
+              <p className="mt-1 text-lg font-semibold text-[#102033]">
+                {portfolio.baseCurrency}
+              </p>
+            </div>
           </div>
         </div>
       </header>
@@ -115,6 +128,8 @@ export function Dashboard({ assets, portfolio, positions, summary, transactions 
             </div>
           )}
         </section>
+
+        <PortfolioForm />
 
         <AssetForm />
 
@@ -251,10 +266,22 @@ export function Dashboard({ assets, portfolio, positions, summary, transactions 
 
 export function EmptyPortfolioState() {
   return (
-    <CenteredState
-      text="Dashboard, ilk portföy oluşturulduktan sonra burada görünecek."
-      title="Henüz portföy oluşturulmamış."
-    />
+    <main className="min-h-screen bg-[#f5f7fa] px-4 py-10 text-[#1f2933] sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#5c6b7a]">
+            Portfolio Tracker
+          </p>
+          <h1 className="mt-4 text-2xl font-semibold text-[#102033]">
+            Henüz portföy oluşturulmamış.
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-[#64748b]">
+            İlk portföyü oluşturduktan sonra dashboard burada açılır.
+          </p>
+        </div>
+        <PortfolioForm />
+      </div>
+    </main>
   );
 }
 

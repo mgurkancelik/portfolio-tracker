@@ -8,8 +8,15 @@ import {
 } from "@/lib/api";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
 
-export default async function DashboardPage() {
-  const dashboardData = await loadDashboardData();
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    portfolioId?: string | string[];
+  }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const dashboardData = await loadDashboardData(getSingleValue(resolvedSearchParams.portfolioId));
 
   if (dashboardData.status === "backend-error") {
     return <BackendErrorState />;
@@ -23,6 +30,7 @@ export default async function DashboardPage() {
     <Dashboard
       assets={dashboardData.assets}
       portfolio={dashboardData.portfolio}
+      portfolios={dashboardData.portfolios}
       positions={dashboardData.positions}
       summary={dashboardData.summary}
       transactions={dashboardData.transactions}
@@ -30,7 +38,7 @@ export default async function DashboardPage() {
   );
 }
 
-async function loadDashboardData(): Promise<DashboardData> {
+async function loadDashboardData(portfolioIdParam?: string): Promise<DashboardData> {
   try {
     const portfolios = await getPortfolios();
 
@@ -38,7 +46,7 @@ async function loadDashboardData(): Promise<DashboardData> {
       return { status: "empty" };
     }
 
-    const portfolio = portfolios[0];
+    const portfolio = selectPortfolio(portfolios, portfolioIdParam);
     const [assets, summary, positions, transactions] = await Promise.all([
       getAssets(),
       getPortfolioSummary(portfolio.id),
@@ -46,10 +54,22 @@ async function loadDashboardData(): Promise<DashboardData> {
       getPortfolioTransactions(portfolio.id),
     ]);
 
-    return { assets, portfolio, positions, status: "ready", summary, transactions };
+    return { assets, portfolio, portfolios, positions, status: "ready", summary, transactions };
   } catch {
     return { status: "backend-error" };
   }
+}
+
+function getSingleValue(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function selectPortfolio(portfolios: Portfolio[], portfolioIdParam?: string) {
+  const portfolioId = Number(portfolioIdParam);
+  if (Number.isInteger(portfolioId)) {
+    return portfolios.find((portfolio) => portfolio.id === portfolioId) ?? portfolios[0];
+  }
+  return portfolios[0];
 }
 
 type DashboardData =
@@ -58,6 +78,7 @@ type DashboardData =
   | {
       assets: Asset[];
       portfolio: Portfolio;
+      portfolios: Portfolio[];
       positions: Position[];
       status: "ready";
       summary: PortfolioSummary;
