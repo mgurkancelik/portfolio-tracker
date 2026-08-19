@@ -23,6 +23,14 @@ type TransactionHistoryProps = {
 };
 
 type TransactionTypeFilter = "ALL" | TransactionType;
+type TransactionSortKey =
+  | "assetSymbol"
+  | "fee"
+  | "quantity"
+  | "transactionDate"
+  | "transactionType"
+  | "unitPrice";
+type SortDirection = "ASC" | "DESC";
 
 export function TransactionHistory({
   assets,
@@ -32,8 +40,14 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("ALL");
+  const [sortKey, setSortKey] = useState<TransactionSortKey>("transactionDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("DESC");
   const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
-  const hasActiveFilters = assetFilter !== "ALL" || typeFilter !== "ALL";
+  const hasActiveControls =
+    assetFilter !== "ALL" ||
+    typeFilter !== "ALL" ||
+    sortKey !== "transactionDate" ||
+    sortDirection !== "DESC";
   const currencyByAssetId = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset.currency])),
     [assets],
@@ -44,6 +58,9 @@ export function TransactionHistory({
     const matchesType = typeFilter === "ALL" || transaction.transactionType === typeFilter;
     return matchesAsset && matchesType;
   });
+  const sortedTransactions = [...filteredTransactions].sort((left, right) =>
+    compareTransactions(left, right, sortKey, sortDirection),
+  );
 
   return (
     <section aria-labelledby="transactions-heading">
@@ -58,7 +75,7 @@ export function TransactionHistory({
         </div>
 
         {transactions.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(208px,1fr)_160px_auto] lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(208px,1fr)_140px_160px_130px_auto] xl:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Asset
@@ -92,7 +109,39 @@ export function TransactionHistory({
               </select>
             </label>
 
-            <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
+            <label className="flex min-w-40 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Sort
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortKey(event.target.value as TransactionSortKey)}
+                value={sortKey}
+              >
+                <option value="transactionDate">Date</option>
+                <option value="assetSymbol">Symbol</option>
+                <option value="transactionType">Type</option>
+                <option value="quantity">Quantity</option>
+                <option value="unitPrice">Unit price</option>
+                <option value="fee">Fee</option>
+              </select>
+            </label>
+
+            <label className="flex min-w-32 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Direction
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                value={sortDirection}
+              >
+                <option value="DESC">Desc</option>
+                <option value="ASC">Asc</option>
+              </select>
+            </label>
+
+            <FilterResetButton disabled={!hasActiveControls} onClick={resetControls} />
           </div>
         ) : null}
       </div>
@@ -117,7 +166,7 @@ export function TransactionHistory({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0]">
-                {filteredTransactions.map((transaction) => {
+                {sortedTransactions.map((transaction) => {
                   const currency = currencyByAssetId.get(transaction.assetId) ?? baseCurrency;
                   const isEditing = editingTransactionId === transaction.id;
 
@@ -183,9 +232,11 @@ export function TransactionHistory({
     </section>
   );
 
-  function resetFilters() {
+  function resetControls() {
     setAssetFilter("ALL");
     setTypeFilter("ALL");
+    setSortKey("transactionDate");
+    setSortDirection("DESC");
   }
 }
 
@@ -475,4 +526,30 @@ function toDateTimeLocalValue(value: string) {
   }
   const offsetMs = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function compareTransactions(
+  left: PortfolioTransaction,
+  right: PortfolioTransaction,
+  sortKey: TransactionSortKey,
+  sortDirection: SortDirection,
+) {
+  let result: number;
+
+  if (sortKey === "transactionDate") {
+    result = Date.parse(left.transactionDate) - Date.parse(right.transactionDate);
+  } else if (sortKey === "assetSymbol" || sortKey === "transactionType") {
+    result = left[sortKey].localeCompare(right[sortKey], "en-US", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  } else {
+    result = left[sortKey] - right[sortKey];
+  }
+
+  if (result === 0) {
+    result = left.id - right.id;
+  }
+
+  return sortDirection === "ASC" ? result : -result;
 }
