@@ -38,115 +38,112 @@ export function Dashboard({
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
       <PortfolioHeader portfolio={portfolio} portfolios={portfolios} />
+      <DashboardNavbar />
 
-      <main className="mx-auto grid max-w-[1400px] gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:px-8">
-        <DashboardSectionNav />
+      <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+        <DashboardOverview
+          assetCount={assets.length}
+          openPositionCount={summary.openPositionCount}
+          portfolioCount={portfolios.length}
+          transactionCount={transactions.length}
+        />
 
-        <div className="flex min-w-0 flex-col gap-8">
-          <DashboardOverview
-            assetCount={assets.length}
-            openPositionCount={summary.openPositionCount}
-            portfolioCount={portfolios.length}
-            transactionCount={transactions.length}
-          />
-
-          <section id="summary" className="scroll-mt-24" aria-labelledby="summary-heading">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 id="summary-heading" className="text-xl font-semibold text-[#102033]">
-                  Özet
-                </h2>
-                <p className="text-sm text-[#64748b]">
-                  Açık pozisyon: {summary.openPositionCount}
-                </p>
-              </div>
+        <section id="summary" className="scroll-mt-24" aria-labelledby="summary-heading">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="summary-heading" className="text-xl font-semibold text-[#102033]">
+                Özet
+              </h2>
+              <p className="text-sm text-[#64748b]">
+                Açık pozisyon: {summary.openPositionCount}
+              </p>
             </div>
-
-            {summary.totalsByCurrency.length === 0 ? (
-              <EmptyPanel text="Bu portföy için henüz özetlenecek işlem yok." />
-            ) : (
-              <div className="grid items-stretch gap-4 lg:grid-cols-2">
-                {summary.totalsByCurrency.map((currencySummary) => (
-                  <article
-                    key={currencySummary.currency}
-                    className="flex h-full flex-col rounded-lg border border-[#d8dee8] bg-white p-5 shadow-sm"
-                  >
-                    <div className="mb-5 flex items-center justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-[#102033]">
-                        {currencySummary.currency}
-                      </h3>
-                      <span className="rounded-md bg-[#eef7f1] px-2.5 py-1 text-xs font-semibold text-[#257447]">
-                        Currency
-                      </span>
-                    </div>
-                    <div className="grid flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
-                      <SummaryMetric
-                        label="Cost Basis"
-                        value={formatCurrency(currencySummary.costBasis, currencySummary.currency)}
-                      />
-                      <SummaryMetric
-                        label="Market Value"
-                        value={formatCurrency(
-                          currencySummary.marketValue,
-                          currencySummary.currency,
-                        )}
-                      />
-                      <SummaryMetric
-                        label="Unrealized P/L"
-                        tone={currencySummary.unrealizedProfit}
-                        value={formatSignedCurrency(
-                          currencySummary.unrealizedProfit,
-                          currencySummary.currency,
-                        )}
-                      />
-                      <SummaryMetric
-                        label="Realized P/L"
-                        tone={currencySummary.realizedProfit}
-                        value={formatSignedCurrency(
-                          currencySummary.realizedProfit,
-                          currencySummary.currency,
-                        )}
-                      />
-                      <SummaryMetric
-                        className="sm:col-span-2"
-                        label="Total P/L"
-                        tone={currencySummary.totalProfit}
-                        value={formatSignedCurrency(
-                          currencySummary.totalProfit,
-                          currencySummary.currency,
-                        )}
-                      />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <div id="portfolio" className="scroll-mt-24">
-            <PortfolioForm />
           </div>
 
-          <div id="assets" className="flex scroll-mt-24 flex-col gap-8">
-            <AssetForm />
+          {summary.totalsByCurrency.length === 0 ? (
+            <EmptyPanel text="Bu portföy için henüz özetlenecek işlem yok." />
+          ) : (
+            <div className="grid items-stretch gap-4 lg:grid-cols-2">
+              {summary.totalsByCurrency.map((currencySummary) => (
+                <article
+                  key={currencySummary.currency}
+                  className="flex h-full flex-col rounded-lg border border-[#d8dee8] bg-white p-5 shadow-sm"
+                >
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-[#102033]">
+                      {currencySummary.currency}
+                    </h3>
+                    <span className="rounded-md bg-[#eef7f1] px-2.5 py-1 text-xs font-semibold text-[#257447]">
+                      Currency
+                    </span>
+                  </div>
+                  <div className="grid flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
+                    <SummaryMetric
+                      label="Cost Basis"
+                      value={formatCurrency(currencySummary.costBasis, currencySummary.currency)}
+                    />
+                    <SummaryMetric
+                      label="Market Value"
+                      value={formatCurrency(
+                        currencySummary.marketValue,
+                        currencySummary.currency,
+                      )}
+                    />
+                    <SummaryMetric
+                      label="Unrealized P/L"
+                      tone={currencySummary.unrealizedProfit}
+                      value={formatSignedCurrency(
+                        currencySummary.unrealizedProfit,
+                        currencySummary.currency,
+                      )}
+                    />
+                    <SummaryMetric
+                      label="Realized P/L"
+                      tone={currencySummary.realizedProfit}
+                      value={formatSignedCurrency(
+                        currencySummary.realizedProfit,
+                        currencySummary.currency,
+                      )}
+                    />
+                    <SummaryMetric
+                      className="sm:col-span-2"
+                      label="Total P/L"
+                      tone={currencySummary.totalProfit}
+                      value={formatSignedCurrency(
+                        currencySummary.totalProfit,
+                        currencySummary.currency,
+                      )}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
-            <AssetList assets={assets} />
-          </div>
+        <div id="portfolio" className="scroll-mt-24">
+          <PortfolioForm />
+        </div>
 
-          <div id="transactions" className="flex scroll-mt-24 flex-col gap-8">
-            <TransactionForm assets={assets} portfolioId={portfolio.id} />
+        <div id="assets" className="flex scroll-mt-24 flex-col gap-8">
+          <AssetForm />
 
-            <TransactionHistory
-              assets={assets}
-              baseCurrency={portfolio.baseCurrency}
-              portfolioId={portfolio.id}
-              transactions={transactions}
-            />
-          </div>
+          <AssetList assets={assets} />
+        </div>
 
-          <div id="positions" className="scroll-mt-24">
-            <PositionTable positions={positions} />
-          </div>
+        <div id="transactions" className="flex scroll-mt-24 flex-col gap-8">
+          <TransactionForm assets={assets} portfolioId={portfolio.id} />
+
+          <TransactionHistory
+            assets={assets}
+            baseCurrency={portfolio.baseCurrency}
+            portfolioId={portfolio.id}
+            transactions={transactions}
+          />
+        </div>
+
+        <div id="positions" className="scroll-mt-24">
+          <PositionTable positions={positions} />
         </div>
       </main>
     </div>
@@ -235,28 +232,31 @@ function toneClass(value?: number) {
   return value > 0 ? "text-[#15803d]" : "text-[#b42318]";
 }
 
-function DashboardSectionNav() {
+function DashboardNavbar() {
   return (
-    <aside className="lg:sticky lg:top-6 lg:self-start">
-      <nav
-        aria-label="Dashboard bölümleri"
-        className="rounded-lg border border-[#d8dee8] bg-white p-2 shadow-sm"
-      >
-        <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">
-          Sekmeler
-        </p>
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+    <nav
+      aria-label="Dashboard bölümleri"
+      className="sticky top-0 z-20 border-b border-[#1d3554] bg-[#102033] shadow-sm"
+    >
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
           {dashboardSections.map((section) => (
             <a
               key={section.href}
-              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-[#334155] transition hover:bg-[#eff6ff] hover:text-[#1d4ed8] focus:bg-[#eff6ff] focus:text-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-[#bfdbfe]"
+              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-[#dbeafe] transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none focus:ring-2 focus:ring-[#93c5fd]"
               href={section.href}
             >
               {section.label}
             </a>
           ))}
         </div>
-      </nav>
-    </aside>
+        <a
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#facc15] px-5 text-sm font-semibold text-[#102033] shadow-sm transition hover:bg-[#fde047] focus:outline-none focus:ring-2 focus:ring-[#fef08a] focus:ring-offset-2 focus:ring-offset-[#102033]"
+          href="#portfolio"
+        >
+          Kayıt Ol
+        </a>
+      </div>
+    </nav>
   );
 }
