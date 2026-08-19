@@ -9,15 +9,6 @@ import { TransactionHistory } from "@/components/transaction-history";
 import { TransactionForm } from "@/components/transaction-form";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
 
-const dashboardSections = [
-  { href: "#overview", label: "Genel" },
-  { href: "#summary", label: "Özet" },
-  { href: "#portfolio", label: "Portföy" },
-  { href: "#assets", label: "Varlıklar" },
-  { href: "#transactions", label: "İşlemler" },
-  { href: "#positions", label: "Pozisyonlar" },
-];
-
 type DashboardProps = {
   assets: Asset[];
   portfolio: Portfolio;
@@ -38,7 +29,6 @@ export function Dashboard({
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
       <PortfolioHeader portfolio={portfolio} portfolios={portfolios} />
-      <DashboardNavbar />
 
       <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <DashboardOverview
@@ -230,33 +220,4 @@ function toneClass(value?: number) {
     return "text-[#334155]";
   }
   return value > 0 ? "text-[#15803d]" : "text-[#b42318]";
-}
-
-function DashboardNavbar() {
-  return (
-    <nav
-      aria-label="Dashboard bölümleri"
-      className="sticky top-0 z-20 border-b border-[#1d3554] bg-[#102033] shadow-sm"
-    >
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
-          {dashboardSections.map((section) => (
-            <a
-              key={section.href}
-              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-[#dbeafe] transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none focus:ring-2 focus:ring-[#93c5fd]"
-              href={section.href}
-            >
-              {section.label}
-            </a>
-          ))}
-        </div>
-        <a
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#facc15] px-5 text-sm font-semibold text-[#102033] shadow-sm transition hover:bg-[#fde047] focus:outline-none focus:ring-2 focus:ring-[#fef08a] focus:ring-offset-2 focus:ring-offset-[#102033]"
-          href="#portfolio"
-        >
-          Kayıt Ol
-        </a>
-      </div>
-    </nav>
-  );
 }
