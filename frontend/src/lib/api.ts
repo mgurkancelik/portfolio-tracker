@@ -1,5 +1,6 @@
 import type {
   Asset,
+  CreateAssetInput,
   CreatePortfolioTransactionInput,
   Portfolio,
   PortfolioSummary,
@@ -83,6 +84,10 @@ export function getPortfolios() {
 
 export function getAssets() {
   return fetchBackend<Asset[]>("/api/assets");
+}
+
+export function createAsset(input: CreateAssetInput) {
+  return sendBackend<Asset>("/api/assets", input);
 }
 
 export function getPortfolioSummary(portfolioId: number) {

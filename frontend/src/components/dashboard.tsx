@@ -6,6 +6,7 @@ import {
   formatQuantity,
   formatSignedCurrency,
 } from "@/lib/format";
+import { AssetForm } from "@/components/asset-form";
 import { TransactionForm } from "@/components/transaction-form";
 import type { Asset, Portfolio, PortfolioSummary, Position } from "@/types/api";
 
@@ -110,6 +111,8 @@ export function Dashboard({ assets, portfolio, positions, summary }: DashboardPr
             </div>
           )}
         </section>
+
+        <AssetForm />
 
         <TransactionForm assets={assets} portfolioId={portfolio.id} />
 

@@ -20,6 +20,13 @@ export type Asset = {
 
 export type TransactionType = "BUY" | "SELL";
 
+export type CreateAssetInput = {
+  symbol: string;
+  name: string;
+  assetType: AssetType;
+  currency: string;
+};
+
 export type CreatePortfolioTransactionInput = {
   assetId: number;
   transactionType: TransactionType;

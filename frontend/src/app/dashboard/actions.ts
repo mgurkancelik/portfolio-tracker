@@ -2,13 +2,48 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createPortfolioTransaction } from "@/lib/api";
-import type { TransactionType } from "@/types/api";
+import { createAsset, createPortfolioTransaction } from "@/lib/api";
+import type { AssetType, TransactionType } from "@/types/api";
 
 export type TransactionFormState = {
   message: string;
   status: "idle" | "success" | "error";
 };
+
+export type AssetFormState = {
+  message: string;
+  status: "idle" | "success" | "error";
+};
+
+export async function createAssetAction(
+  _previousState: AssetFormState,
+  formData: FormData,
+): Promise<AssetFormState> {
+  const symbol = String(formData.get("symbol") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const assetType = String(formData.get("assetType")) as AssetType;
+  const currency = String(formData.get("currency") ?? "").trim();
+
+  if (!symbol || !name || !isAssetType(assetType) || !/^[A-Za-z]{3}$/.test(currency)) {
+    return { message: "Varlik alanlarini kontrol et.", status: "error" };
+  }
+
+  try {
+    await createAsset({
+      assetType,
+      currency,
+      name,
+      symbol,
+    });
+    revalidatePath("/dashboard");
+    return { message: "Varlik kaydedildi.", status: "success" };
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "Varlik kaydedilemedi.",
+      status: "error",
+    };
+  }
+}
 
 export async function createTransactionAction(
   _previousState: TransactionFormState,
@@ -52,6 +87,10 @@ export async function createTransactionAction(
       status: "error",
     };
   }
+}
+
+function isAssetType(value: string): value is AssetType {
+  return value === "STOCK" || value === "CRYPTO" || value === "FOREX";
 }
 
 function isTransactionType(value: string): value is TransactionType {
