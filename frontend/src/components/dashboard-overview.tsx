@@ -12,11 +12,11 @@ export function DashboardOverview({
   transactionCount,
 }: DashboardOverviewProps) {
   return (
-    <section aria-labelledby="overview-heading">
+    <section id="overview" className="scroll-mt-24" aria-labelledby="overview-heading">
       <h2 id="overview-heading" className="sr-only">
         Genel Durum
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewMetric label="Portföy" value={portfolioCount} />
         <OverviewMetric label="Varlık" value={assetCount} />
         <OverviewMetric label="İşlem" value={transactionCount} />
@@ -28,7 +28,7 @@ export function DashboardOverview({
 
 function OverviewMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-[#d8dee8] bg-white px-5 py-4 shadow-sm">
+    <div className="flex min-h-28 flex-col justify-between rounded-lg border border-[#d8dee8] bg-white px-5 py-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-[#102033]">{value}</p>
     </div>
