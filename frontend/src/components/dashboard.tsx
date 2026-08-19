@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import {
   formatCurrency,
-  formatDateTime,
   formatPercentage,
   formatQuantity,
   formatSignedCurrency,
@@ -10,6 +9,7 @@ import {
 import { AssetForm } from "@/components/asset-form";
 import { PortfolioForm } from "@/components/portfolio-form";
 import { PortfolioSwitcher } from "@/components/portfolio-switcher";
+import { TransactionHistory } from "@/components/transaction-history";
 import { TransactionForm } from "@/components/transaction-form";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
 
@@ -30,8 +30,6 @@ export function Dashboard({
   summary,
   transactions,
 }: DashboardProps) {
-  const currencyByAssetId = new Map(assets.map((asset) => [asset.id, asset.currency]));
-
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
       <header className="border-b border-[#d8dee8] bg-white">
@@ -135,63 +133,12 @@ export function Dashboard({
 
         <TransactionForm assets={assets} portfolioId={portfolio.id} />
 
-        <section aria-labelledby="transactions-heading">
-          <div className="mb-4">
-            <h2 id="transactions-heading" className="text-xl font-semibold text-[#102033]">
-              İşlem Geçmişi
-            </h2>
-          </div>
+        <TransactionHistory
+          assets={assets}
+          baseCurrency={portfolio.baseCurrency}
+          transactions={transactions}
+        />
 
-          {transactions.length === 0 ? (
-            <EmptyPanel text="Henüz işlem kaydı yok." />
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-[#d8dee8] bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-                  <thead className="bg-[#f7f9fc] text-xs uppercase tracking-[0.12em] text-[#64748b]">
-                    <tr>
-                      <TableHeader>Date</TableHeader>
-                      <TableHeader>Symbol</TableHeader>
-                      <TableHeader>Type</TableHeader>
-                      <TableHeader align="right">Quantity</TableHeader>
-                      <TableHeader align="right">Unit Price</TableHeader>
-                      <TableHeader align="right">Fee</TableHeader>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#e2e8f0]">
-                    {transactions.map((transaction) => {
-                      const currency =
-                        currencyByAssetId.get(transaction.assetId) ?? portfolio.baseCurrency;
-
-                      return (
-                        <tr key={transaction.id} className="hover:bg-[#fafcff]">
-                          <TableCell>{formatDateTime(transaction.transactionDate)}</TableCell>
-                          <TableCell>
-                            <span className="font-semibold text-[#102033]">
-                              {transaction.assetSymbol}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <TransactionTypeBadge type={transaction.transactionType} />
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatQuantity(transaction.quantity)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(transaction.unitPrice, currency, 8)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(transaction.fee, currency, 8)}
-                          </TableCell>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </section>
 
         <section aria-labelledby="positions-heading">
           <div className="mb-4">
@@ -368,19 +315,6 @@ function TableCell({
     >
       {children}
     </td>
-  );
-}
-
-function TransactionTypeBadge({ type }: { type: PortfolioTransaction["transactionType"] }) {
-  const className =
-    type === "BUY"
-      ? "bg-[#eef7f1] text-[#257447]"
-      : "bg-[#fff1f1] text-[#b42318]";
-
-  return (
-    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${className}`}>
-      {type}
-    </span>
   );
 }
 
