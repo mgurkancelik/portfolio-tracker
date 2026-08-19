@@ -20,8 +20,12 @@ type AssetTypeFilter = "ALL" | AssetType;
 type PositionSortKey =
   | "assetSymbol"
   | "assetType"
+  | "averageCost"
+  | "costBasis"
+  | "currentPrice"
   | "marketValue"
   | "quantity"
+  | "realizedProfit"
   | "unrealizedProfit"
   | "unrealizedProfitPercentage";
 type SortDirection = "ASC" | "DESC";
@@ -31,7 +35,11 @@ export function PositionTable({ positions }: PositionTableProps) {
   const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
   const [sortKey, setSortKey] = useState<PositionSortKey>("assetSymbol");
   const [sortDirection, setSortDirection] = useState<SortDirection>("ASC");
-  const hasActiveFilters = assetFilter !== "ALL" || assetTypeFilter !== "ALL";
+  const hasActiveControls =
+    assetFilter !== "ALL" ||
+    assetTypeFilter !== "ALL" ||
+    sortKey !== "assetSymbol" ||
+    sortDirection !== "ASC";
   const availableAssetTypes = useMemo(
     () => Array.from(new Set(positions.map((position) => position.assetType))).sort(),
     [positions],
@@ -109,8 +117,12 @@ export function PositionTable({ positions }: PositionTableProps) {
                 <option value="assetSymbol">Symbol</option>
                 <option value="assetType">Type</option>
                 <option value="quantity">Quantity</option>
+                <option value="averageCost">Average Cost</option>
+                <option value="costBasis">Cost Basis</option>
+                <option value="currentPrice">Current Price</option>
                 <option value="marketValue">Market Value</option>
                 <option value="unrealizedProfit">Unrealized P/L</option>
+                <option value="realizedProfit">Realized P/L</option>
                 <option value="unrealizedProfitPercentage">Return %</option>
               </select>
             </label>
@@ -129,7 +141,7 @@ export function PositionTable({ positions }: PositionTableProps) {
               </select>
             </label>
 
-            <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
+            <FilterResetButton disabled={!hasActiveControls} onClick={resetControls} />
           </div>
         ) : null}
       </div>
@@ -197,9 +209,11 @@ export function PositionTable({ positions }: PositionTableProps) {
     </section>
   );
 
-  function resetFilters() {
+  function resetControls() {
     setAssetFilter("ALL");
     setAssetTypeFilter("ALL");
+    setSortKey("assetSymbol");
+    setSortDirection("ASC");
   }
 }
 
@@ -260,13 +274,17 @@ function comparePositions(
 ) {
   const leftValue = left[sortKey];
   const rightValue = right[sortKey];
-  const result =
+  let result =
     typeof leftValue === "number" && typeof rightValue === "number"
       ? leftValue - rightValue
       : String(leftValue).localeCompare(String(rightValue), "en-US", {
           numeric: true,
           sensitivity: "base",
         });
+
+  if (result === 0) {
+    result = left.assetId - right.assetId;
+  }
 
   return sortDirection === "ASC" ? result : -result;
 }
