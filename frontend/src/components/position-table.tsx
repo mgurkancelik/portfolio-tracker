@@ -17,10 +17,20 @@ type PositionTableProps = {
 };
 
 type AssetTypeFilter = "ALL" | AssetType;
+type PositionSortKey =
+  | "assetSymbol"
+  | "assetType"
+  | "marketValue"
+  | "quantity"
+  | "unrealizedProfit"
+  | "unrealizedProfitPercentage";
+type SortDirection = "ASC" | "DESC";
 
 export function PositionTable({ positions }: PositionTableProps) {
   const [assetFilter, setAssetFilter] = useState("ALL");
   const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
+  const [sortKey, setSortKey] = useState<PositionSortKey>("assetSymbol");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("ASC");
   const hasActiveFilters = assetFilter !== "ALL" || assetTypeFilter !== "ALL";
   const availableAssetTypes = useMemo(
     () => Array.from(new Set(positions.map((position) => position.assetType))).sort(),
@@ -33,6 +43,9 @@ export function PositionTable({ positions }: PositionTableProps) {
       assetTypeFilter === "ALL" || position.assetType === assetTypeFilter;
     return matchesAsset && matchesAssetType;
   });
+  const sortedPositions = [...filteredPositions].sort((left, right) =>
+    comparePositions(left, right, sortKey, sortDirection),
+  );
 
   return (
     <section aria-labelledby="positions-heading">
@@ -47,7 +60,7 @@ export function PositionTable({ positions }: PositionTableProps) {
         </div>
 
         {positions.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(208px,1fr)_160px_auto] lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(208px,1fr)_150px_180px_120px_auto] xl:items-end">
             <label className="flex min-w-52 flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
                 Asset
@@ -84,6 +97,38 @@ export function PositionTable({ positions }: PositionTableProps) {
               </select>
             </label>
 
+            <label className="flex min-w-44 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Sort
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortKey(event.target.value as PositionSortKey)}
+                value={sortKey}
+              >
+                <option value="assetSymbol">Symbol</option>
+                <option value="assetType">Type</option>
+                <option value="quantity">Quantity</option>
+                <option value="marketValue">Market Value</option>
+                <option value="unrealizedProfit">Unrealized P/L</option>
+                <option value="unrealizedProfitPercentage">Return %</option>
+              </select>
+            </label>
+
+            <label className="flex min-w-28 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">
+                Direction
+              </span>
+              <select
+                className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
+                onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                value={sortDirection}
+              >
+                <option value="ASC">Asc</option>
+                <option value="DESC">Desc</option>
+              </select>
+            </label>
+
             <FilterResetButton disabled={!hasActiveFilters} onClick={resetFilters} />
           </div>
         ) : null}
@@ -111,7 +156,7 @@ export function PositionTable({ positions }: PositionTableProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0]">
-                {filteredPositions.map((position) => (
+                {sortedPositions.map((position) => (
                   <tr key={position.assetId} className="hover:bg-[#fafcff]">
                     <TableCell>
                       <span className="font-semibold text-[#102033]">
@@ -205,4 +250,23 @@ function toneClass(value?: number) {
     return "text-[#334155]";
   }
   return value > 0 ? "text-[#15803d]" : "text-[#b42318]";
+}
+
+function comparePositions(
+  left: Position,
+  right: Position,
+  sortKey: PositionSortKey,
+  sortDirection: SortDirection,
+) {
+  const leftValue = left[sortKey];
+  const rightValue = right[sortKey];
+  const result =
+    typeof leftValue === "number" && typeof rightValue === "number"
+      ? leftValue - rightValue
+      : String(leftValue).localeCompare(String(rightValue), "en-US", {
+          numeric: true,
+          sensitivity: "base",
+        });
+
+  return sortDirection === "ASC" ? result : -result;
 }
