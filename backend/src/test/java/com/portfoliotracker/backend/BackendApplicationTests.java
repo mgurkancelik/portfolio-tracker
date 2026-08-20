@@ -1,6 +1,7 @@
 package com.portfoliotracker.backend;
 
 import com.portfoliotracker.backend.asset.AssetService;
+import com.portfoliotracker.backend.user.UserRepository;
 import com.portfoliotracker.backend.portfolio.PortfolioService;
 import com.portfoliotracker.backend.portfolio.PortfolioSummaryService;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionService;
@@ -26,6 +27,9 @@ class BackendApplicationTests {
 
 	@MockitoBean
 	private PortfolioSummaryService portfolioSummaryService;
+
+	@MockitoBean
+	private UserRepository userRepository;
 
 	@Test
 	void contextLoadsWithoutDatabaseAutoConfiguration() {
