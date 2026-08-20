@@ -9,6 +9,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.portfoliotracker.backend.asset.Asset;
+import com.portfoliotracker.backend.asset.AssetType;
 import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
 import com.portfoliotracker.backend.marketdata.MarketDataProvider;
 import com.portfoliotracker.backend.marketdata.MarketPrice;
@@ -16,7 +17,6 @@ import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionSummary;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuation;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuationCalculator;
-import com.portfoliotracker.backend.transaction.PortfolioNotFoundException;
 import com.portfoliotracker.backend.transaction.PortfolioTransaction;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
 
@@ -68,6 +68,7 @@ public class PortfolioSummaryService {
 						Collectors.toList()));
 
 		Map<String, CurrencyTotals> totalsByCurrency = new TreeMap<>();
+		SummaryTotals summaryTotals = new SummaryTotals();
 		int openPositionCount = 0;
 
 		for (List<PortfolioTransaction> assetTransactions : transactionsByAssetId.values()) {
@@ -76,13 +77,24 @@ public class PortfolioSummaryService {
 			CurrencyTotals totals = totalsByCurrency.computeIfAbsent(asset.getCurrency(), ignored -> new CurrencyTotals());
 			totals.addRealizedProfit(summary.realizedProfit());
 
-			if (summary.quantity().compareTo(ZERO) > 0) {
-				PositionValuation valuation = calculateValuation(asset, summary);
-				totals.addCostBasis(summary.costBasis());
-				totals.addMarketValue(valuation.marketValue());
-				totals.addUnrealizedProfit(valuation.unrealizedProfit());
-				openPositionCount++;
+			if (asset.getAssetType() == AssetType.CASH) {
+				BigDecimal cashBalance = normalize(summary.quantity());
+				summaryTotals.addCashBalance(cashBalance);
+				totals.addCostBasis(cashBalance);
+				totals.addMarketValue(cashBalance);
+				continue;
 			}
+
+			if (summary.quantity().compareTo(ZERO) <= 0) {
+				continue;
+			}
+
+			PositionValuation valuation = calculateValuation(asset, summary);
+			summaryTotals.addInvestment(summary.costBasis(), valuation.marketValue(), valuation.unrealizedProfit());
+			totals.addCostBasis(summary.costBasis());
+			totals.addMarketValue(valuation.marketValue());
+			totals.addUnrealizedProfit(valuation.unrealizedProfit());
+			openPositionCount++;
 		}
 
 		List<CurrencyPortfolioSummary> totals = totalsByCurrency.entrySet().stream()
@@ -93,6 +105,10 @@ public class PortfolioSummaryService {
 				portfolio.getId(),
 				portfolio.getName(),
 				portfolio.getBaseCurrency(),
+				summaryTotals.totalPortfolioValue(),
+				summaryTotals.totalCashBalance(),
+				summaryTotals.totalUnrealizedProfit(),
+				summaryTotals.totalUnrealizedProfitPercentage(),
 				openPositionCount,
 				totals);
 	}
@@ -150,6 +166,48 @@ public class PortfolioSummaryService {
 					normalizedUnrealizedProfit,
 					normalizedRealizedProfit,
 					normalize(normalizedRealizedProfit.add(normalizedUnrealizedProfit)));
+		}
+	}
+
+	private static class SummaryTotals {
+
+		private BigDecimal totalInvestmentCostBasis = ZERO;
+
+		private BigDecimal totalInvestmentMarketValue = ZERO;
+
+		private BigDecimal totalCashBalance = ZERO;
+
+		private BigDecimal totalUnrealizedProfit = ZERO;
+
+		void addCashBalance(BigDecimal amount) {
+			totalCashBalance = totalCashBalance.add(amount);
+		}
+
+		void addInvestment(BigDecimal costBasis, BigDecimal marketValue, BigDecimal unrealizedProfit) {
+			totalInvestmentCostBasis = totalInvestmentCostBasis.add(costBasis);
+			totalInvestmentMarketValue = totalInvestmentMarketValue.add(marketValue);
+			totalUnrealizedProfit = totalUnrealizedProfit.add(unrealizedProfit);
+		}
+
+		BigDecimal totalPortfolioValue() {
+			return normalize(totalInvestmentMarketValue.add(totalCashBalance));
+		}
+
+		BigDecimal totalCashBalance() {
+			return normalize(totalCashBalance);
+		}
+
+		BigDecimal totalUnrealizedProfit() {
+			return normalize(totalUnrealizedProfit);
+		}
+
+		BigDecimal totalUnrealizedProfitPercentage() {
+			if (totalInvestmentCostBasis.compareTo(ZERO) == 0) {
+				return normalize(ZERO);
+			}
+			return normalize(totalUnrealizedProfit
+					.multiply(new BigDecimal("100"))
+					.divide(totalInvestmentCostBasis, SUMMARY_SCALE, RoundingMode.HALF_EVEN));
 		}
 	}
 }

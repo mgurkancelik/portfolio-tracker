@@ -9,8 +9,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
-import com.portfoliotracker.backend.portfolio.PortfolioSummaryService;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +17,7 @@ class PortfolioTransactionControllerTest {
 
 	private final PortfolioTransactionService transactionService = mock(PortfolioTransactionService.class);
 
-	private final PortfolioSummaryService portfolioSummaryService = mock(PortfolioSummaryService.class);
-
-	private final PortfolioTransactionController controller = new PortfolioTransactionController(
-			transactionService,
-			portfolioSummaryService);
+	private final PortfolioTransactionController controller = new PortfolioTransactionController(transactionService);
 
 	@Test
 	void updateTransactionCallsServiceAndReturnsResponse() {

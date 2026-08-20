@@ -24,6 +24,11 @@ public class PortfolioTransactionExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT).build();
 	}
 
+	@ExceptionHandler(InsufficientFundsException.class)
+	ResponseEntity<Void> handleInsufficientFunds() {
+		return ResponseEntity.status(HttpStatus.CONFLICT).build();
+	}
+
 	@ExceptionHandler(MarketDataNotAvailableException.class)
 	ResponseEntity<String> handleMarketDataNotAvailable(MarketDataNotAvailableException exception) {
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(exception.getMessage());

@@ -69,7 +69,7 @@ class AssetRepositoryIntegrationTest {
 		Integer migrationCount = jdbcTemplate.queryForObject("""
 				SELECT count(*)
 				FROM flyway_schema_history
-				WHERE version IN ('1', '2')
+				WHERE version IN ('1', '2', '3', '4')
 				  AND success = true
 				""", Integer.class);
 
@@ -80,18 +80,25 @@ class AssetRepositoryIntegrationTest {
 				  AND table_name = 'assets'
 				""", Integer.class);
 
-		assertEquals(2, migrationCount);
+		assertEquals(4, migrationCount);
 		assertEquals(1, tableCount);
 
 		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
+		Asset cash = assetRepository.saveAndFlush(new Asset("USD", "USD Cash", AssetType.CASH, "USD"));
 		Long assetId = asset.getId();
+		Long cashId = cash.getId();
 
 		entityManager.clear();
 		Asset found = assetRepository.findBySymbolAndAssetType("AAPL", AssetType.STOCK).orElseThrow();
+		Asset foundCash = assetRepository.findBySymbolAndAssetType("USD", AssetType.CASH).orElseThrow();
 		String storedAssetType = jdbcTemplate.queryForObject(
 				"SELECT asset_type FROM assets WHERE id = ?",
 				String.class,
 				assetId);
+		String storedCashAssetType = jdbcTemplate.queryForObject(
+				"SELECT asset_type FROM assets WHERE id = ?",
+				String.class,
+				cashId);
 
 		assertNotNull(found.getId());
 		assertEquals("AAPL", found.getSymbol());
@@ -101,6 +108,8 @@ class AssetRepositoryIntegrationTest {
 		assertEquals("STOCK", storedAssetType);
 		assertNotNull(found.getCreatedAt());
 		assertNotNull(found.getUpdatedAt());
+		assertEquals(AssetType.CASH, foundCash.getAssetType());
+		assertEquals("CASH", storedCashAssetType);
 	}
 
 	@Test

@@ -89,11 +89,13 @@ class PortfolioSummaryApiIntegrationTest {
 	@Test
 	void summaryAggregatesOpenPositionsByCurrencyAndKeepsClosedRealizedProfit() throws Exception {
 		Portfolio portfolio = createPortfolio();
+		Asset cash = createAsset("TRY", "TRY Cash", AssetType.CASH, "TRY");
 		Asset aapl = createAsset("AAPL", "Apple Inc.", AssetType.STOCK, "USD");
 		Asset btc = createAsset("BTC", "Bitcoin", AssetType.CRYPTO, "USD");
 		Asset eurtry = createAsset("EURTRY", "Euro Turkish Lira", AssetType.FOREX, "TRY");
 
 		saveTransactions(List.of(
+				transaction(portfolio, cash, TransactionType.BUY, "5000", "1", "0", 1),
 				transaction(portfolio, aapl, TransactionType.BUY, "10", "100", "10", 1),
 				transaction(portfolio, aapl, TransactionType.BUY, "5", "120", "5", 2),
 				transaction(portfolio, aapl, TransactionType.SELL, "3", "140", "2", 3),
@@ -106,11 +108,15 @@ class PortfolioSummaryApiIntegrationTest {
 				.andExpect(jsonPath("$.portfolioId").value(portfolio.getId().intValue()))
 				.andExpect(jsonPath("$.portfolioName").value("Ana Portfoy"))
 				.andExpect(jsonPath("$.baseCurrency").value("TRY"))
+				.andExpect(content().string(containsString("\"totalPortfolioValue\":39300.00000000")))
+				.andExpect(content().string(containsString("\"totalCashBalance\":5000.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfit\":2988.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfitPercentage\":9.54266735")))
 				.andExpect(jsonPath("$.openPositionCount").value(2))
 				.andExpect(jsonPath("$.totalsByCurrency", hasSize(2)))
 				.andExpect(jsonPath("$.totalsByCurrency[0].currency").value("TRY"))
-				.andExpect(content().string(containsString("\"costBasis\":0.00000000")))
-				.andExpect(content().string(containsString("\"marketValue\":0.00000000")))
+				.andExpect(content().string(containsString("\"costBasis\":5000.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":5000.00000000")))
 				.andExpect(content().string(containsString("\"unrealizedProfit\":0.00000000")))
 				.andExpect(content().string(containsString("\"realizedProfit\":20.00000000")))
 				.andExpect(content().string(containsString("\"totalProfit\":20.00000000")))
@@ -125,12 +131,35 @@ class PortfolioSummaryApiIntegrationTest {
 		verify(marketDataProvider).getCurrentPrice(argThat(asset -> "AAPL".equals(asset.getSymbol())));
 		verify(marketDataProvider).getCurrentPrice(argThat(asset -> "BTC".equals(asset.getSymbol())));
 		verify(marketDataProvider, never()).getCurrentPrice(argThat(asset -> "EURTRY".equals(asset.getSymbol())));
+		verify(marketDataProvider, never()).getCurrentPrice(argThat(asset -> "TRY".equals(asset.getSymbol())));
 	}
 
 	@Test
 	void summaryReturnsNotFoundForUnknownPortfolio() throws Exception {
 		mockMvc.perform(get("/api/portfolios/999999/summary"))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void summaryReturnsCashOnlyTotalsWithoutMarketDataLookup() throws Exception {
+		Portfolio portfolio = createPortfolio();
+		Asset cash = createAsset("TRY", "TRY Cash", AssetType.CASH, "TRY");
+		saveTransactions(List.of(transaction(portfolio, cash, TransactionType.BUY, "1200", "1", "0", 1)));
+
+		mockMvc.perform(get(summaryPath(portfolio)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.baseCurrency").value("TRY"))
+				.andExpect(content().string(containsString("\"totalPortfolioValue\":1200.00000000")))
+				.andExpect(content().string(containsString("\"totalCashBalance\":1200.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfit\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfitPercentage\":0.00000000")))
+				.andExpect(jsonPath("$.openPositionCount").value(0))
+				.andExpect(jsonPath("$.totalsByCurrency", hasSize(1)))
+				.andExpect(jsonPath("$.totalsByCurrency[0].currency").value("TRY"))
+				.andExpect(content().string(containsString("\"costBasis\":1200.00000000")))
+				.andExpect(content().string(containsString("\"marketValue\":1200.00000000")));
+
+		verify(marketDataProvider, never()).getCurrentPrice(any(Asset.class));
 	}
 
 	@Test
@@ -142,6 +171,10 @@ class PortfolioSummaryApiIntegrationTest {
 				.andExpect(jsonPath("$.portfolioId").value(portfolio.getId().intValue()))
 				.andExpect(jsonPath("$.portfolioName").value("Ana Portfoy"))
 				.andExpect(jsonPath("$.baseCurrency").value("TRY"))
+				.andExpect(content().string(containsString("\"totalPortfolioValue\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalCashBalance\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfit\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfitPercentage\":0.00000000")))
 				.andExpect(jsonPath("$.openPositionCount").value(0))
 				.andExpect(jsonPath("$.totalsByCurrency", hasSize(0)));
 
@@ -169,6 +202,10 @@ class PortfolioSummaryApiIntegrationTest {
 
 		mockMvc.perform(get(summaryPath(portfolio)))
 				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("\"totalPortfolioValue\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalCashBalance\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfit\":0.00000000")))
+				.andExpect(content().string(containsString("\"totalUnrealizedProfitPercentage\":0.00000000")))
 				.andExpect(jsonPath("$.openPositionCount").value(0))
 				.andExpect(jsonPath("$.totalsByCurrency", hasSize(1)))
 				.andExpect(jsonPath("$.totalsByCurrency[0].currency").value("USD"))

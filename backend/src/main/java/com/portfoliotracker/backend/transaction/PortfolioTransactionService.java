@@ -1,6 +1,7 @@
 package com.portfoliotracker.backend.transaction;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -11,11 +12,13 @@ import java.util.stream.Collectors;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
+import com.portfoliotracker.backend.asset.AssetType;
 import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
 import com.portfoliotracker.backend.marketdata.MarketDataProvider;
 import com.portfoliotracker.backend.marketdata.MarketPrice;
 import com.portfoliotracker.backend.portfolio.Portfolio;
 import com.portfoliotracker.backend.portfolio.PortfolioRepository;
+import com.portfoliotracker.backend.portfolio.calculation.InsufficientPositionException;
 import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionSummary;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuation;
@@ -29,6 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PortfolioTransactionService {
+
+	private static final int MONEY_SCALE = 8;
+
+	private static final BigDecimal CASH_UNIT_PRICE = new BigDecimal("1.00000000");
+
+	private static final BigDecimal ZERO = BigDecimal.ZERO;
 
 	private final PortfolioTransactionRepository transactionRepository;
 
@@ -68,6 +77,56 @@ public class PortfolioTransactionService {
 		Asset asset = assetRepository.findById(request.assetId())
 				.orElseThrow(() -> new AssetNotFoundException(request.assetId()));
 
+		if (asset.getAssetType() == AssetType.CASH) {
+			PortfolioTransaction saved = saveAndValidateTransaction(portfolioId, newTransaction(portfolio, asset, request));
+			entityManager.refresh(saved);
+			return toResponse(saved);
+		}
+
+		Asset cashAsset = ensureCashAssetExists(portfolio.getBaseCurrency());
+		if (request.transactionType() == TransactionType.BUY) {
+			BigDecimal totalCost = totalCost(request);
+			ensureSufficientCash(portfolioId, cashAsset, totalCost);
+
+			PortfolioTransaction saved = saveAndValidateTransaction(portfolioId, newTransaction(portfolio, asset, request));
+			saveAndValidateCashTransaction(
+					portfolioId,
+					new PortfolioTransaction(
+							portfolio,
+							cashAsset,
+							TransactionType.SELL,
+							totalCost,
+							CASH_UNIT_PRICE,
+							ZERO,
+							request.transactionDate()));
+			entityManager.refresh(saved);
+			return toResponse(saved);
+		}
+
+		BigDecimal netProceeds = netSaleProceeds(request);
+		if (netProceeds.compareTo(ZERO) <= 0) {
+			throw new InsufficientFundsException("Sell proceeds must be greater than fee.");
+		}
+
+		PortfolioTransaction saved = saveAndValidateTransaction(portfolioId, newTransaction(portfolio, asset, request));
+		saveAndValidateCashTransaction(
+				portfolioId,
+				new PortfolioTransaction(
+						portfolio,
+						cashAsset,
+						TransactionType.BUY,
+						netProceeds,
+						CASH_UNIT_PRICE,
+						ZERO,
+						request.transactionDate()));
+		entityManager.refresh(saved);
+		return toResponse(saved);
+	}
+
+	private PortfolioTransaction newTransaction(
+			Portfolio portfolio,
+			Asset asset,
+			CreatePortfolioTransactionRequest request) {
 		PortfolioTransaction transaction = new PortfolioTransaction(
 				portfolio,
 				asset,
@@ -76,13 +135,71 @@ public class PortfolioTransactionService {
 				request.unitPrice(),
 				request.fee(),
 				request.transactionDate());
+		return transaction;
+	}
 
+	private PortfolioTransaction saveAndValidateTransaction(Long portfolioId, PortfolioTransaction transaction) {
 		PortfolioTransaction saved = transactionRepository.saveAndFlush(transaction);
+		validatePositionHistory(portfolioId, transaction.getAsset());
+		return saved;
+	}
+
+	private void saveAndValidateCashTransaction(Long portfolioId, PortfolioTransaction cashTransaction) {
+		transactionRepository.saveAndFlush(cashTransaction);
+		validatePositionHistory(portfolioId, cashTransaction.getAsset());
+	}
+
+	private void validatePositionHistory(Long portfolioId, Asset asset) {
 		List<PortfolioTransaction> history = transactionRepository
-				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, request.assetId());
-		positionCalculator.calculate(history);
-		entityManager.refresh(saved);
-		return toResponse(saved);
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, asset.getId());
+		try {
+			positionCalculator.calculate(history);
+		}
+		catch (InsufficientPositionException exception) {
+			if (asset.getAssetType() == AssetType.CASH) {
+				throw new InsufficientFundsException("Cash balance is not sufficient.");
+			}
+			throw exception;
+		}
+	}
+
+	private Asset ensureCashAssetExists(String currency) {
+		return assetRepository.findBySymbolAndAssetType(currency, AssetType.CASH)
+				.orElseGet(() -> assetRepository.saveAndFlush(new Asset(
+						currency,
+						currency + " Cash",
+						AssetType.CASH,
+						currency)));
+	}
+
+	private void ensureSufficientCash(Long portfolioId, Asset cashAsset, BigDecimal requiredCash) {
+		BigDecimal availableCash = currentCashQuantity(portfolioId, cashAsset);
+		if (requiredCash.compareTo(availableCash) > 0) {
+			throw new InsufficientFundsException("Cash balance is not sufficient.");
+		}
+	}
+
+	private BigDecimal currentCashQuantity(Long portfolioId, Asset cashAsset) {
+		List<PortfolioTransaction> history = transactionRepository
+				.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(portfolioId, cashAsset.getId());
+		try {
+			return positionCalculator.calculate(history).quantity();
+		}
+		catch (InsufficientPositionException exception) {
+			throw new InsufficientFundsException("Cash balance is not sufficient.");
+		}
+	}
+
+	private static BigDecimal totalCost(CreatePortfolioTransactionRequest request) {
+		return normalizeMoney(request.quantity().multiply(request.unitPrice()).add(request.fee()));
+	}
+
+	private static BigDecimal netSaleProceeds(CreatePortfolioTransactionRequest request) {
+		return normalizeMoney(request.quantity().multiply(request.unitPrice()).subtract(request.fee()));
+	}
+
+	private static BigDecimal normalizeMoney(BigDecimal value) {
+		return value.setScale(MONEY_SCALE, RoundingMode.HALF_EVEN);
 	}
 
 	@Transactional(readOnly = true)

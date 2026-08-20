@@ -93,6 +93,10 @@ class PortfolioApiIntegrationTest {
 		assertEquals(1, portfolioRepository.count());
 		Portfolio saved = portfolioRepository.findAll().get(0);
 		assertEquals("USD", saved.getBaseCurrency());
+		assertEquals(1, assetRepository.count());
+		Asset cashAsset = assetRepository.findBySymbolAndAssetType("USD", AssetType.CASH).orElseThrow();
+		assertEquals("USD Cash", cashAsset.getName());
+		assertEquals("USD", cashAsset.getCurrency());
 
 		mockMvc.perform(get("/api/portfolios"))
 				.andExpect(status().isOk())
@@ -102,6 +106,35 @@ class PortfolioApiIntegrationTest {
 				.andExpect(jsonPath("$[0].baseCurrency").value("USD"))
 				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
 				.andExpect(jsonPath("$[0].updatedAt").isNotEmpty());
+	}
+
+	@Test
+	void createPortfolioReusesCashAssetForSameCurrency() throws Exception {
+		mockMvc.perform(post("/api/portfolios")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "Birinci",
+						  "baseCurrency": "try"
+						}
+						"""))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(post("/api/portfolios")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "İkinci",
+						  "baseCurrency": "TRY"
+						}
+						"""))
+				.andExpect(status().isCreated());
+
+		assertEquals(2, portfolioRepository.count());
+		assertEquals(1, assetRepository.count());
+		Asset cashAsset = assetRepository.findBySymbolAndAssetType("TRY", AssetType.CASH).orElseThrow();
+		assertEquals("TRY Cash", cashAsset.getName());
+		assertEquals("TRY", cashAsset.getCurrency());
 	}
 
 	@Test

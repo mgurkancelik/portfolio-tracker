@@ -33,6 +33,8 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 
 	private static final int PRICE_SCALE = 8;
 
+	private static final BigDecimal CASH_PRICE = new BigDecimal("1.00000000");
+
 	private static final BigDecimal ZERO = BigDecimal.ZERO;
 
 	private static final String QUERY_PATH = "/query";
@@ -61,10 +63,12 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 
 	@Override
 	public MarketPrice getCurrentPrice(Asset asset) {
-		ensureApiKeyConfigured();
-
 		return switch (asset.getAssetType()) {
-			case STOCK -> getStockPrice(asset);
+			case CASH -> getCashPrice(asset);
+			case STOCK -> {
+				ensureApiKeyConfigured();
+				yield getStockPrice(asset);
+			}
 			case CRYPTO -> getExchangeRatePrice(
 					asset,
 					normalizeSymbol(asset.getSymbol()),
@@ -74,6 +78,15 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 				yield getExchangeRatePrice(asset, forexPair.baseCurrency(), forexPair.quoteCurrency());
 			}
 		};
+	}
+
+	private MarketPrice getCashPrice(Asset asset) {
+		return new MarketPrice(
+				asset.getId(),
+				normalizeSymbol(asset.getSymbol()),
+				CASH_PRICE,
+				normalizeCurrency(asset.getCurrency(), "asset currency"),
+				nowUtc());
 	}
 
 	private MarketPrice getStockPrice(Asset asset) {
@@ -97,6 +110,8 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 	}
 
 	private MarketPrice getExchangeRatePrice(Asset asset, String fromCurrency, String toCurrency) {
+		ensureApiKeyConfigured();
+
 		Map<String, Object> response = fetch(queryParameters(
 				"function", "CURRENCY_EXCHANGE_RATE",
 				"from_currency", fromCurrency,

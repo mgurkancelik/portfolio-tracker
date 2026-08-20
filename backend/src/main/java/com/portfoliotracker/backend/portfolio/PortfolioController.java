@@ -21,8 +21,11 @@ public class PortfolioController {
 
 	private final PortfolioService portfolioService;
 
-	public PortfolioController(PortfolioService portfolioService) {
+	private final PortfolioSummaryService portfolioSummaryService;
+
+	public PortfolioController(PortfolioService portfolioService, PortfolioSummaryService portfolioSummaryService) {
 		this.portfolioService = portfolioService;
+		this.portfolioSummaryService = portfolioSummaryService;
 	}
 
 	@PostMapping
@@ -47,5 +50,10 @@ public class PortfolioController {
 	public ResponseEntity<Void> deletePortfolio(@PathVariable Long portfolioId) {
 		portfolioService.deletePortfolio(portfolioId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping("/{portfolioId}/summary")
+	public PortfolioSummaryResponse getSummary(@PathVariable Long portfolioId) {
+		return portfolioSummaryService.getSummary(portfolioId);
 	}
 }

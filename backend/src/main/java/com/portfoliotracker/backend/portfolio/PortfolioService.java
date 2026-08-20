@@ -5,6 +5,10 @@ import java.util.Locale;
 
 import jakarta.persistence.EntityManager;
 
+import com.portfoliotracker.backend.asset.Asset;
+import com.portfoliotracker.backend.asset.AssetRepository;
+import com.portfoliotracker.backend.asset.AssetType;
+
 import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -15,10 +19,16 @@ public class PortfolioService {
 
 	private final PortfolioRepository portfolioRepository;
 
+	private final AssetRepository assetRepository;
+
 	private final EntityManager entityManager;
 
-	public PortfolioService(PortfolioRepository portfolioRepository, EntityManager entityManager) {
+	public PortfolioService(
+			PortfolioRepository portfolioRepository,
+			AssetRepository assetRepository,
+			EntityManager entityManager) {
 		this.portfolioRepository = portfolioRepository;
+		this.assetRepository = assetRepository;
 		this.entityManager = entityManager;
 	}
 
@@ -27,6 +37,7 @@ public class PortfolioService {
 		String normalizedBaseCurrency = request.baseCurrency().toUpperCase(Locale.ROOT);
 		Portfolio portfolio = new Portfolio(request.name(), normalizedBaseCurrency);
 		Portfolio saved = portfolioRepository.saveAndFlush(portfolio);
+		ensureCashAssetExists(normalizedBaseCurrency);
 		entityManager.refresh(saved);
 		return toResponse(saved);
 	}
@@ -73,5 +84,14 @@ public class PortfolioService {
 				portfolio.getBaseCurrency(),
 				portfolio.getCreatedAt(),
 				portfolio.getUpdatedAt());
+	}
+
+	private void ensureCashAssetExists(String currency) {
+		assetRepository.findBySymbolAndAssetType(currency, AssetType.CASH)
+				.orElseGet(() -> assetRepository.saveAndFlush(new Asset(
+						currency,
+						currency + " Cash",
+						AssetType.CASH,
+						currency)));
 	}
 }

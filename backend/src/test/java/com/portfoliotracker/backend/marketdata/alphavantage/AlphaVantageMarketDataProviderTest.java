@@ -95,6 +95,16 @@ class AlphaVantageMarketDataProviderTest {
 	}
 
 	@Test
+	void cashPriceDoesNotCallAlphaVantage() {
+		AlphaVantageMarketDataProvider providerWithoutKey =
+				new AlphaVantageMarketDataProvider(restClient, properties(""));
+
+		MarketPrice price = providerWithoutKey.getCurrentPrice(asset(22L, "USD", AssetType.CASH, "USD"));
+
+		assertMarketPrice(price, 22L, "USD", "1.00000000", "USD");
+	}
+
+	@Test
 	void invalidForexSymbolThrowsMarketDataUnavailable() {
 		assertThrows(
 				MarketDataNotAvailableException.class,
