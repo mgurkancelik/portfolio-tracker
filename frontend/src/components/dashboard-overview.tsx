@@ -1,36 +1,79 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency, formatPercentage, formatSignedCurrency } from "@/lib/format";
+import type { PortfolioSummary } from "@/types/api";
+
 type DashboardOverviewProps = {
-  assetCount: number;
-  openPositionCount: number;
-  portfolioCount: number;
-  transactionCount: number;
+  summary: PortfolioSummary;
 };
 
-export function DashboardOverview({
-  assetCount,
-  openPositionCount,
-  portfolioCount,
-  transactionCount,
-}: DashboardOverviewProps) {
+export function DashboardOverview({ summary }: DashboardOverviewProps) {
+  const profitTone = getProfitTone(summary.totalUnrealizedProfit);
+
   return (
     <section id="overview" className="scroll-mt-24" aria-labelledby="overview-heading">
       <h2 id="overview-heading" className="sr-only">
         Genel Durum
       </h2>
-      <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewMetric label="Portföy" value={portfolioCount} />
-        <OverviewMetric label="Varlık" value={assetCount} />
-        <OverviewMetric label="İşlem" value={transactionCount} />
-        <OverviewMetric label="Açık Pozisyon" value={openPositionCount} />
+
+      <div className="grid auto-rows-fr gap-4 md:grid-cols-3 xl:grid-cols-[1.35fr_1fr_1fr]">
+        <Card className="min-h-44">
+          <CardHeader className="pb-3">
+            <CardTitle>Toplam Varlık</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-semibold text-slate-950 dark:text-zinc-50">
+              {formatCurrency(summary.totalPortfolioValue, summary.baseCurrency)}
+            </p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-zinc-400">
+              {summary.openPositionCount} açık yatırım pozisyonu
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="min-h-44">
+          <CardHeader className="flex-row items-center justify-between gap-4 pb-3">
+            <CardTitle>Nakit Bakiyesi</CardTitle>
+            <span
+              aria-hidden="true"
+              className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {summary.baseCurrency}
+            </span>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold text-slate-950 dark:text-zinc-50">
+              {formatCurrency(summary.totalCashBalance, summary.baseCurrency)}
+            </p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-zinc-400">
+              Harcanabilir nakit
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="min-h-44">
+          <CardHeader className="pb-3">
+            <CardTitle>Kar/Zarar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-semibold ${profitTone}`}>
+              {formatSignedCurrency(summary.totalUnrealizedProfit, summary.baseCurrency)}
+            </p>
+            <p className={`mt-4 text-sm font-medium ${profitTone}`}>
+              {formatPercentage(summary.totalUnrealizedProfitPercentage)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
 }
 
-function OverviewMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex min-h-28 flex-col justify-between rounded-lg border border-[#d8dee8] bg-white px-5 py-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#64748b]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[#102033]">{value}</p>
-    </div>
-  );
+function getProfitTone(value: number) {
+  if (value > 0) {
+    return "text-green-500";
+  }
+  if (value < 0) {
+    return "text-red-500";
+  }
+  return "text-slate-950 dark:text-zinc-50";
 }

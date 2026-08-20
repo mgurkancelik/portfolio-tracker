@@ -50,10 +50,7 @@ export function Dashboard({
 
       <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <DashboardOverview
-          assetCount={assets.length}
-          openPositionCount={summary.openPositionCount}
-          portfolioCount={portfolios.length}
-          transactionCount={transactions.length}
+          summary={summary}
         />
 
         {selectedProduct ? <ProductContextPanel product={selectedProduct} /> : null}

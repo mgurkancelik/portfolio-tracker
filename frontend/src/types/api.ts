@@ -6,7 +6,7 @@ export type Portfolio = {
   updatedAt: string;
 };
 
-export type AssetType = "STOCK" | "CRYPTO" | "FOREX";
+export type AssetType = "STOCK" | "CRYPTO" | "FOREX" | "CASH";
 
 export type Asset = {
   id: number;
@@ -89,6 +89,10 @@ export type PortfolioSummary = {
   portfolioId: number;
   portfolioName: string;
   baseCurrency: string;
+  totalPortfolioValue: number;
+  totalCashBalance: number;
+  totalUnrealizedProfit: number;
+  totalUnrealizedProfitPercentage: number;
   openPositionCount: number;
   totalsByCurrency: CurrencyPortfolioSummary[];
 };
