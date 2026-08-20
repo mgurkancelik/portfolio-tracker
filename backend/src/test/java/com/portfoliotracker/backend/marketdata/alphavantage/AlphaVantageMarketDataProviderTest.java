@@ -15,7 +15,7 @@ import java.time.OffsetDateTime;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetType;
-import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
+import com.portfoliotracker.backend.marketdata.MarketDataUnavailableException;
 import com.portfoliotracker.backend.marketdata.MarketPrice;
 
 import org.junit.jupiter.api.AfterEach;
@@ -107,10 +107,10 @@ class AlphaVantageMarketDataProviderTest {
 	@Test
 	void invalidForexSymbolThrowsMarketDataUnavailable() {
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> AlphaVantageMarketDataProvider.parseForexSymbol("EURTRYX", "TRY"));
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> AlphaVantageMarketDataProvider.parseForexSymbol("EUR/USD", "TRY"));
 	}
 
@@ -123,7 +123,7 @@ class AlphaVantageMarketDataProviderTest {
 				""");
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(13L, "AAPL", AssetType.STOCK, "USD")));
 	}
 
@@ -136,7 +136,7 @@ class AlphaVantageMarketDataProviderTest {
 				""");
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(14L, "AAPL", AssetType.STOCK, "USD")));
 	}
 
@@ -149,7 +149,7 @@ class AlphaVantageMarketDataProviderTest {
 				""");
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(15L, "AAPL", AssetType.STOCK, "USD")));
 	}
 
@@ -158,7 +158,7 @@ class AlphaVantageMarketDataProviderTest {
 		expectStock("AAPL", API_KEY, globalQuote("AAPL", "not-a-number"));
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(16L, "AAPL", AssetType.STOCK, "USD")));
 	}
 
@@ -168,10 +168,10 @@ class AlphaVantageMarketDataProviderTest {
 		expectStock("MSFT", API_KEY, globalQuote("MSFT", "-1"));
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(17L, "AAPL", AssetType.STOCK, "USD")));
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(18L, "MSFT", AssetType.STOCK, "USD")));
 	}
 
@@ -182,7 +182,7 @@ class AlphaVantageMarketDataProviderTest {
 				.andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
 
 		assertThrows(
-				MarketDataNotAvailableException.class,
+				MarketDataUnavailableException.class,
 				() -> provider.getCurrentPrice(asset(19L, "AAPL", AssetType.STOCK, "USD")));
 	}
 
@@ -197,8 +197,8 @@ class AlphaVantageMarketDataProviderTest {
 				}
 				""");
 
-		MarketDataNotAvailableException exception = assertThrows(
-				MarketDataNotAvailableException.class,
+		MarketDataUnavailableException exception = assertThrows(
+				MarketDataUnavailableException.class,
 				() -> providerWithConfiguredKey.getCurrentPrice(asset(20L, "AAPL", AssetType.STOCK, "USD")));
 
 		assertFalse(exception.getMessage().contains(apiKey));
@@ -210,8 +210,8 @@ class AlphaVantageMarketDataProviderTest {
 		AlphaVantageMarketDataProvider providerWithoutKey =
 				new AlphaVantageMarketDataProvider(restClient, properties(""));
 
-		MarketDataNotAvailableException exception = assertThrows(
-				MarketDataNotAvailableException.class,
+		MarketDataUnavailableException exception = assertThrows(
+				MarketDataUnavailableException.class,
 				() -> providerWithoutKey.getCurrentPrice(asset(21L, "AAPL", AssetType.STOCK, "USD")));
 
 		assertFalse(exception.getMessage().contains(API_KEY));

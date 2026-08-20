@@ -31,7 +31,7 @@ public class FakeMarketDataProvider implements MarketDataProvider {
 
 		FakePrice fakePrice = PRICES.get(asset.getSymbol());
 		if (fakePrice == null) {
-			throw new MarketDataNotAvailableException("Market data is not available for symbol: " + asset.getSymbol());
+			throw new MarketDataUnavailableException("Market data is not available for symbol: " + asset.getSymbol());
 		}
 		return new MarketPrice(asset.getId(), asset.getSymbol(), fakePrice.price(), fakePrice.currency(), AS_OF);
 	}

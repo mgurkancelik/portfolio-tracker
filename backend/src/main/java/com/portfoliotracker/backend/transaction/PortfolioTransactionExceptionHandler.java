@@ -1,6 +1,6 @@
 package com.portfoliotracker.backend.transaction;
 
-import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
+import com.portfoliotracker.backend.marketdata.MarketDataUnavailableException;
 import com.portfoliotracker.backend.portfolio.calculation.InsufficientPositionException;
 
 import org.springframework.http.HttpStatus;
@@ -29,8 +29,8 @@ public class PortfolioTransactionExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT).build();
 	}
 
-	@ExceptionHandler(MarketDataNotAvailableException.class)
-	ResponseEntity<String> handleMarketDataNotAvailable(MarketDataNotAvailableException exception) {
+	@ExceptionHandler(MarketDataUnavailableException.class)
+	ResponseEntity<String> handleMarketDataUnavailable(MarketDataUnavailableException exception) {
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(exception.getMessage());
 	}
 }

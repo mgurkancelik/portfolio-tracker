@@ -14,9 +14,9 @@ import java.util.Map;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetType;
-import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
 import com.portfoliotracker.backend.marketdata.MarketDataProvider;
 import com.portfoliotracker.backend.marketdata.MarketPrice;
+import com.portfoliotracker.backend.marketdata.MarketDataUnavailableException;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
@@ -154,7 +154,7 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 			rejectServiceMessages(body);
 			return body;
 		}
-		catch (MarketDataNotAvailableException exception) {
+		catch (MarketDataUnavailableException exception) {
 			throw exception;
 		}
 		catch (RestClientException exception) {
@@ -310,8 +310,8 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
 		return value == null ? "" : value.toString().trim();
 	}
 
-	private static MarketDataNotAvailableException unavailable(String message) {
-		return new MarketDataNotAvailableException(message);
+	private static MarketDataUnavailableException unavailable(String message) {
+		return new MarketDataUnavailableException(message);
 	}
 
 	record ForexPair(String baseCurrency, String quoteCurrency) {

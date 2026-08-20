@@ -13,9 +13,9 @@ import java.util.stream.Collectors;
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
 import com.portfoliotracker.backend.asset.AssetType;
-import com.portfoliotracker.backend.marketdata.MarketDataNotAvailableException;
 import com.portfoliotracker.backend.marketdata.MarketDataProvider;
 import com.portfoliotracker.backend.marketdata.MarketPrice;
+import com.portfoliotracker.backend.marketdata.MarketDataUnavailableException;
 import com.portfoliotracker.backend.portfolio.Portfolio;
 import com.portfoliotracker.backend.portfolio.PortfolioRepository;
 import com.portfoliotracker.backend.portfolio.calculation.InsufficientPositionException;
@@ -367,11 +367,11 @@ public class PortfolioTransactionService {
 
 	private PositionValuation calculateValuation(Asset asset, PositionSummary summary) {
 		MarketDataProvider provider = marketDataProvider.getIfAvailable(() -> {
-			throw new MarketDataNotAvailableException("Market data provider is not configured.");
+			throw new MarketDataUnavailableException("Market data provider is not configured.");
 		});
 		MarketPrice marketPrice = provider.getCurrentPrice(asset);
 		if (!asset.getCurrency().equals(marketPrice.currency())) {
-			throw new MarketDataNotAvailableException(
+			throw new MarketDataUnavailableException(
 					"Market data currency %s does not match asset currency %s for symbol %s."
 							.formatted(marketPrice.currency(), asset.getCurrency(), asset.getSymbol()));
 		}
