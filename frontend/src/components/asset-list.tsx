@@ -16,16 +16,26 @@ import type { Asset, AssetType } from "@/types/api";
 
 type AssetListProps = {
   assets: Asset[];
+  initialAssetTypeFilter?: AssetType;
+  initialCurrencyFilter?: string;
+  productFilterLabel?: string;
 };
 
 type AssetTypeFilter = "ALL" | AssetType;
 type AssetSortKey = "assetType" | "currency" | "name" | "symbol";
 type SortDirection = "ASC" | "DESC";
 
-export function AssetList({ assets }: AssetListProps) {
+export function AssetList({
+  assets,
+  initialAssetTypeFilter,
+  initialCurrencyFilter,
+  productFilterLabel,
+}: AssetListProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>("ALL");
-  const [currencyFilter, setCurrencyFilter] = useState("ALL");
+  const [assetTypeFilter, setAssetTypeFilter] = useState<AssetTypeFilter>(
+    initialAssetTypeFilter ?? "ALL",
+  );
+  const [currencyFilter, setCurrencyFilter] = useState(initialCurrencyFilter ?? "ALL");
   const [sortKey, setSortKey] = useState<AssetSortKey>("symbol");
   const [sortDirection, setSortDirection] = useState<SortDirection>("ASC");
   const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
@@ -64,6 +74,11 @@ export function AssetList({ assets }: AssetListProps) {
           <p className="text-sm text-[#64748b]">
             Gösterilen varlık: {filteredAssets.length} / {assets.length}
           </p>
+          {productFilterLabel ? (
+            <p className="mt-1 text-sm font-medium text-[#4f46e5]">
+              Ürün filtresi: {productFilterLabel}
+            </p>
+          ) : null}
         </div>
 
         {assets.length > 0 ? (

@@ -7,28 +7,46 @@ import { PortfolioHeader } from "@/components/portfolio-header";
 import { PositionTable } from "@/components/position-table";
 import { TransactionHistory } from "@/components/transaction-history";
 import { TransactionForm } from "@/components/transaction-form";
-import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
+import type { ProductMenuItem } from "@/data/navigation";
+import type {
+  Asset,
+  AssetType,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+  Position,
+} from "@/types/api";
 
 type DashboardProps = {
   assets: Asset[];
+  assetTypeFilter?: AssetType;
+  currencyFilter?: string;
   portfolio: Portfolio;
   portfolios: Portfolio[];
   positions: Position[];
+  selectedProduct?: ProductMenuItem | null;
   summary: PortfolioSummary;
   transactions: PortfolioTransaction[];
 };
 
 export function Dashboard({
   assets,
+  assetTypeFilter,
+  currencyFilter,
   portfolio,
   portfolios,
   positions,
+  selectedProduct,
   summary,
   transactions,
 }: DashboardProps) {
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-[#1f2933]">
-      <PortfolioHeader portfolio={portfolio} portfolios={portfolios} />
+      <PortfolioHeader
+        activeProductKey={selectedProduct?.key}
+        portfolio={portfolio}
+        portfolios={portfolios}
+      />
 
       <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <DashboardOverview
@@ -37,6 +55,8 @@ export function Dashboard({
           portfolioCount={portfolios.length}
           transactionCount={transactions.length}
         />
+
+        {selectedProduct ? <ProductContextPanel product={selectedProduct} /> : null}
 
         <section id="summary" className="scroll-mt-24" aria-labelledby="summary-heading">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -118,7 +138,13 @@ export function Dashboard({
         <div id="assets" className="flex scroll-mt-24 flex-col gap-8">
           <AssetForm />
 
-          <AssetList assets={assets} />
+          <AssetList
+            assets={assets}
+            key={`${assetTypeFilter ?? "ALL"}-${currencyFilter ?? "ALL"}-${selectedProduct?.key ?? "none"}`}
+            initialAssetTypeFilter={assetTypeFilter}
+            initialCurrencyFilter={currencyFilter}
+            productFilterLabel={selectedProduct?.label}
+          />
         </div>
 
         <div id="transactions" className="flex scroll-mt-24 flex-col gap-8">
@@ -220,4 +246,37 @@ function toneClass(value?: number) {
     return "text-[#334155]";
   }
   return value > 0 ? "text-[#15803d]" : "text-[#b42318]";
+}
+
+function ProductContextPanel({ product }: { product: ProductMenuItem }) {
+  return (
+    <section
+      aria-label={`${product.label} ürün bilgisi`}
+      className="rounded-lg border border-[#d8dee8] bg-white px-5 py-4 shadow-sm"
+    >
+      <p className="text-xs font-semibold uppercase text-[#64748b]">
+        Seçili Ürün
+      </p>
+      <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-[#102033]">{product.label}</h2>
+          <p className="mt-1 text-sm leading-6 text-[#64748b]">{product.description}</p>
+        </div>
+        {product.assetType || product.currency ? (
+          <div className="flex flex-wrap gap-2">
+            {product.assetType ? <FilterBadge text={product.assetType} /> : null}
+            {product.currency ? <FilterBadge text={product.currency} /> : null}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function FilterBadge({ text }: { text: string }) {
+  return (
+    <span className="rounded-md bg-[#eef2ff] px-3 py-1.5 text-xs font-semibold text-[#4f46e5]">
+      {text}
+    </span>
+  );
 }

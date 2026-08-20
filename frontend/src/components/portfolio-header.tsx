@@ -13,9 +13,11 @@ import { PortfolioSwitcher } from "@/components/portfolio-switcher";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { NavLink } from "@/components/ui/nav-link";
 import { dashboardSections, productMenuItems } from "@/data/navigation";
+import type { ProductMenuItem } from "@/data/navigation";
 import type { Portfolio } from "@/types/api";
 
 type PortfolioHeaderProps = {
+  activeProductKey?: string;
   portfolio: Portfolio;
   portfolios: Portfolio[];
 };
@@ -30,8 +32,17 @@ const initialDeleteState: DeletePortfolioState = {
   status: "idle",
 };
 
-export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps) {
+export function PortfolioHeader({
+  activeProductKey,
+  portfolio,
+  portfolios,
+}: PortfolioHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const productDropdownItems = productMenuItems.map((item) => ({
+    href: buildProductHref(item, portfolio.id),
+    isActive: item.key === activeProductKey,
+    label: item.label,
+  }));
 
   return (
     <header className="border-b border-[#1d3554] bg-[#102033] text-white shadow-sm">
@@ -85,7 +96,7 @@ export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps)
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu
               ariaLabel="Ürünler menüsü"
-              items={productMenuItems}
+              items={productDropdownItems}
               label="Ürünler"
             />
             <NavLink className="px-4" href="#summary">
@@ -105,6 +116,23 @@ export function PortfolioHeader({ portfolio, portfolios }: PortfolioHeaderProps)
       </div>
     </header>
   );
+}
+
+function buildProductHref(item: ProductMenuItem, portfolioId: number) {
+  const params = new URLSearchParams({
+    portfolioId: String(portfolioId),
+    product: item.key,
+  });
+
+  if (item.assetType) {
+    params.set("assetType", item.assetType);
+  }
+
+  if (item.currency) {
+    params.set("currency", item.currency);
+  }
+
+  return `/dashboard?${params.toString()}#${item.sectionId}`;
 }
 
 function DeletePortfolioForm({ portfolio }: { portfolio: Portfolio }) {
