@@ -24,6 +24,7 @@ import com.portfoliotracker.backend.portfolio.PortfolioRepository;
 import com.portfoliotracker.backend.portfolio.calculation.InsufficientPositionException;
 import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuationCalculator;
+import com.portfoliotracker.backend.security.CurrentUserService;
 
 import jakarta.persistence.EntityManager;
 
@@ -50,10 +51,13 @@ class PortfolioTransactionServiceTest {
 
 	private final EntityManager entityManager = mock(EntityManager.class);
 
+	private final CurrentUserService currentUserService = mock(CurrentUserService.class);
+
 	private PortfolioTransactionService service;
 
 	@BeforeEach
 	void setUp() {
+		when(currentUserService.currentUserId()).thenReturn(1L);
 		service = new PortfolioTransactionService(
 				transactionRepository,
 				portfolioRepository,
@@ -61,7 +65,8 @@ class PortfolioTransactionServiceTest {
 				positionCalculator,
 				positionValuationCalculator,
 				marketDataProvider,
-				entityManager);
+				entityManager,
+				currentUserService);
 	}
 
 	@Test
@@ -71,7 +76,7 @@ class PortfolioTransactionServiceTest {
 		PortfolioTransaction transactionToUpdate = transaction(100L, portfolio, asset, TransactionType.BUY, "10", 1);
 		PortfolioTransaction sellTransaction = transaction(101L, portfolio, asset, TransactionType.SELL, "3", 2);
 		List<PortfolioTransaction> history = List.of(transactionToUpdate, sellTransaction);
-		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(portfolioRepository.existsByIdAndUserId(portfolio.getId(), 1L)).thenReturn(true);
 		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
 				.thenReturn(Optional.of(transactionToUpdate));
 		when(assetRepository.findById(asset.getId())).thenReturn(Optional.of(asset));
@@ -115,7 +120,7 @@ class PortfolioTransactionServiceTest {
 				TransactionType.BUY,
 				"4",
 				1);
-		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(portfolioRepository.existsByIdAndUserId(portfolio.getId(), 1L)).thenReturn(true);
 		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
 				.thenReturn(Optional.of(transactionToUpdate));
 		when(assetRepository.findById(updatedAsset.getId())).thenReturn(Optional.of(updatedAsset));
@@ -160,7 +165,7 @@ class PortfolioTransactionServiceTest {
 				TransactionType.SELL,
 				"8",
 				2);
-		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(portfolioRepository.existsByIdAndUserId(portfolio.getId(), 1L)).thenReturn(true);
 		when(transactionRepository.findByIdAndPortfolioId(transactionToUpdate.getId(), portfolio.getId()))
 				.thenReturn(Optional.of(transactionToUpdate));
 		when(assetRepository.findById(updatedAsset.getId())).thenReturn(Optional.of(updatedAsset));
@@ -191,7 +196,7 @@ class PortfolioTransactionServiceTest {
 		Asset asset = asset(10L);
 		PortfolioTransaction transactionToDelete = transaction(100L, portfolio, asset, TransactionType.SELL, "3", 3);
 		PortfolioTransaction remainingTransaction = transaction(101L, portfolio, asset, TransactionType.BUY, "10", 1);
-		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(portfolioRepository.existsByIdAndUserId(portfolio.getId(), 1L)).thenReturn(true);
 		when(transactionRepository.findByIdAndPortfolioId(transactionToDelete.getId(), portfolio.getId()))
 				.thenReturn(Optional.of(transactionToDelete));
 		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
@@ -211,7 +216,7 @@ class PortfolioTransactionServiceTest {
 		Asset asset = asset(10L);
 		PortfolioTransaction transactionToDelete = transaction(100L, portfolio, asset, TransactionType.BUY, "10", 1);
 		PortfolioTransaction remainingTransaction = transaction(101L, portfolio, asset, TransactionType.SELL, "8", 2);
-		when(portfolioRepository.existsById(portfolio.getId())).thenReturn(true);
+		when(portfolioRepository.existsByIdAndUserId(portfolio.getId(), 1L)).thenReturn(true);
 		when(transactionRepository.findByIdAndPortfolioId(transactionToDelete.getId(), portfolio.getId()))
 				.thenReturn(Optional.of(transactionToDelete));
 		when(transactionRepository.findAllByPortfolioIdAndAssetIdOrderByTransactionDateAscIdAsc(
@@ -229,7 +234,7 @@ class PortfolioTransactionServiceTest {
 	}
 
 	private static Portfolio portfolio(Long id) {
-		Portfolio portfolio = new Portfolio("Ana Portfoy", "TRY");
+		Portfolio portfolio = new Portfolio("Ana Portfoy", "TRY", 1L);
 		ReflectionTestUtils.setField(portfolio, "id", id);
 		return portfolio;
 	}

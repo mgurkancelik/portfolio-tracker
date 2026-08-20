@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
@@ -18,7 +19,10 @@ import com.portfoliotracker.backend.asset.AssetType;
 import com.portfoliotracker.backend.transaction.PortfolioTransaction;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
 import com.portfoliotracker.backend.transaction.TransactionType;
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +30,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,6 +64,11 @@ class PortfolioApiIntegrationTest {
 	@Autowired
 	private PortfolioTransactionRepository transactionRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
+	private User currentUser;
+
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -68,9 +80,18 @@ class PortfolioApiIntegrationTest {
 
 	@BeforeEach
 	void deletePortfolios() {
+		SecurityContextHolder.clearContext();
 		transactionRepository.deleteAll();
 		assetRepository.deleteAll();
 		portfolioRepository.deleteAll();
+		userRepository.deleteAll();
+		currentUser = createUser("owner@example.com");
+		authenticate(currentUser);
+	}
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
@@ -93,6 +114,7 @@ class PortfolioApiIntegrationTest {
 		assertEquals(1, portfolioRepository.count());
 		Portfolio saved = portfolioRepository.findAll().get(0);
 		assertEquals("USD", saved.getBaseCurrency());
+		assertEquals(currentUser.getId(), saved.getUserId());
 		assertEquals(1, assetRepository.count());
 		Asset cashAsset = assetRepository.findBySymbolAndAssetType("USD", AssetType.CASH).orElseThrow();
 		assertEquals("USD Cash", cashAsset.getName());
@@ -153,8 +175,21 @@ class PortfolioApiIntegrationTest {
 	}
 
 	@Test
+	void listPortfoliosOnlyReturnsCurrentUsersPortfolios() throws Exception {
+		Portfolio ownPortfolio = createPortfolio("Ana Portfoy", "TRY");
+		User otherUser = createUser("other@example.com");
+		portfolioRepository.saveAndFlush(new Portfolio("Baska Portfoy", "USD", otherUser.getId()));
+
+		mockMvc.perform(get("/api/portfolios"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)))
+				.andExpect(jsonPath("$[0].id").value(ownPortfolio.getId().intValue()))
+				.andExpect(jsonPath("$[0].name").value("Ana Portfoy"));
+	}
+
+	@Test
 	void updatePortfolioNormalizesBaseCurrency() throws Exception {
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+		Portfolio portfolio = createPortfolio("Uzun Vadeli", "TRY");
 
 		mockMvc.perform(put("/api/portfolios/%d".formatted(portfolio.getId()))
 				.contentType(MediaType.APPLICATION_JSON)
@@ -191,7 +226,7 @@ class PortfolioApiIntegrationTest {
 
 	@Test
 	void updatePortfolioRejectsInvalidRequest() throws Exception {
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+		Portfolio portfolio = createPortfolio("Uzun Vadeli", "TRY");
 
 		mockMvc.perform(put("/api/portfolios/%d".formatted(portfolio.getId()))
 				.contentType(MediaType.APPLICATION_JSON)
@@ -210,7 +245,7 @@ class PortfolioApiIntegrationTest {
 
 	@Test
 	void deletePortfolioRemovesUnusedPortfolio() throws Exception {
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "TRY"));
+		Portfolio portfolio = createPortfolio("Uzun Vadeli", "TRY");
 
 		mockMvc.perform(delete("/api/portfolios/%d".formatted(portfolio.getId())))
 				.andExpect(status().isNoContent());
@@ -226,7 +261,7 @@ class PortfolioApiIntegrationTest {
 
 	@Test
 	void deletePortfolioRejectsPortfolioUsedByTransactions() throws Exception {
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD"));
+		Portfolio portfolio = createPortfolio("Uzun Vadeli", "USD");
 		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
 		transactionRepository.saveAndFlush(new PortfolioTransaction(
 				portfolio,
@@ -242,5 +277,39 @@ class PortfolioApiIntegrationTest {
 
 		assertEquals(1, portfolioRepository.count());
 		assertEquals(1, transactionRepository.count());
+	}
+
+	@Test
+	void updatePortfolioReturnsNotFoundForAnotherUsersPortfolio() throws Exception {
+		User otherUser = createUser("other-owner@example.com");
+		Portfolio otherPortfolio = portfolioRepository.saveAndFlush(new Portfolio(
+				"Baska Portfoy",
+				"TRY",
+				otherUser.getId()));
+
+		mockMvc.perform(put("/api/portfolios/%d".formatted(otherPortfolio.getId()))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "Degistirilemez",
+						  "baseCurrency": "usd"
+						}
+						"""))
+				.andExpect(status().isNotFound());
+	}
+
+	private Portfolio createPortfolio(String name, String baseCurrency) {
+		return portfolioRepository.saveAndFlush(new Portfolio(name, baseCurrency, currentUser.getId()));
+	}
+
+	private User createUser(String email) {
+		return userRepository.saveAndFlush(new User(email, "password-hash"));
+	}
+
+	private static void authenticate(User user) {
+		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+				user.getEmail(),
+				null,
+				List.of(new SimpleGrantedAuthority("ROLE_USER"))));
 	}
 }

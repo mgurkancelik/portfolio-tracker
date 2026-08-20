@@ -19,6 +19,8 @@ import com.portfoliotracker.backend.asset.AssetRepository;
 import com.portfoliotracker.backend.asset.AssetType;
 import com.portfoliotracker.backend.portfolio.Portfolio;
 import com.portfoliotracker.backend.portfolio.PortfolioRepository;
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
 
 import jakarta.persistence.EntityManager;
 
@@ -58,6 +60,9 @@ class PortfolioTransactionRepositoryIntegrationTest {
 
 	@Autowired
 	private PortfolioRepository portfolioRepository;
+
+	@Autowired
+	private UserRepository userRepository;
 
 	@Autowired
 	private AssetRepository assetRepository;
@@ -203,7 +208,8 @@ class PortfolioTransactionRepositoryIntegrationTest {
 	}
 
 	private Portfolio createPortfolio() {
-		return portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD"));
+		User user = userRepository.saveAndFlush(new User("owner-%d@example.com".formatted(System.nanoTime()), "password-hash"));
+		return portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD", user.getId()));
 	}
 
 	private Asset createAsset() {

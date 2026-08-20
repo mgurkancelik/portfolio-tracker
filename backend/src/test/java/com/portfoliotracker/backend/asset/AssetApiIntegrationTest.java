@@ -17,6 +17,8 @@ import com.portfoliotracker.backend.portfolio.PortfolioRepository;
 import com.portfoliotracker.backend.transaction.PortfolioTransaction;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
 import com.portfoliotracker.backend.transaction.TransactionType;
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +58,9 @@ class AssetApiIntegrationTest {
 	@Autowired
 	private PortfolioTransactionRepository transactionRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -70,6 +75,7 @@ class AssetApiIntegrationTest {
 		transactionRepository.deleteAll();
 		assetRepository.deleteAll();
 		portfolioRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	@Test
@@ -256,7 +262,8 @@ class AssetApiIntegrationTest {
 
 	@Test
 	void deleteAssetRejectsAssetUsedByTransactions() throws Exception {
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD"));
+		User user = userRepository.saveAndFlush(new User("owner@example.com", "password-hash"));
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Uzun Vadeli", "USD", user.getId()));
 		Asset asset = assetRepository.saveAndFlush(new Asset("AAPL", "Apple Inc.", AssetType.STOCK, "USD"));
 		transactionRepository.saveAndFlush(new PortfolioTransaction(
 				portfolio,

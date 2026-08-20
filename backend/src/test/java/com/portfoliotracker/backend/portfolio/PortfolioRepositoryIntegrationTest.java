@@ -8,6 +8,9 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
+
 import jakarta.persistence.EntityManager;
 
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,9 @@ class PortfolioRepositoryIntegrationTest {
 
 	@Autowired
 	private PortfolioRepository portfolioRepository;
+
+	@Autowired
+	private UserRepository userRepository;
 
 	@Autowired
 	private EntityManager entityManager;
@@ -78,7 +84,8 @@ class PortfolioRepositoryIntegrationTest {
 		assertEquals(1, migrationCount);
 		assertEquals(1, tableCount);
 
-		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Long Term", "USD"));
+		User user = userRepository.saveAndFlush(new User("owner@example.com", "password-hash"));
+		Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio("Long Term", "USD", user.getId()));
 		Long portfolioId = portfolio.getId();
 
 		entityManager.clear();
@@ -87,6 +94,7 @@ class PortfolioRepositoryIntegrationTest {
 		assertNotNull(found.getId());
 		assertEquals("Long Term", found.getName());
 		assertEquals("USD", found.getBaseCurrency());
+		assertEquals(user.getId(), found.getUserId());
 		assertNotNull(found.getCreatedAt());
 		assertNotNull(found.getUpdatedAt());
 	}

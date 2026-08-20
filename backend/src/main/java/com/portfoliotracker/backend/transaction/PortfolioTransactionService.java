@@ -23,6 +23,7 @@ import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionSummary;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuation;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuationCalculator;
+import com.portfoliotracker.backend.security.CurrentUserService;
 
 import jakarta.persistence.EntityManager;
 
@@ -53,6 +54,8 @@ public class PortfolioTransactionService {
 
 	private final EntityManager entityManager;
 
+	private final CurrentUserService currentUserService;
+
 	public PortfolioTransactionService(
 			PortfolioTransactionRepository transactionRepository,
 			PortfolioRepository portfolioRepository,
@@ -60,7 +63,8 @@ public class PortfolioTransactionService {
 			PositionCalculator positionCalculator,
 			PositionValuationCalculator positionValuationCalculator,
 			ObjectProvider<MarketDataProvider> marketDataProvider,
-			EntityManager entityManager) {
+			EntityManager entityManager,
+			CurrentUserService currentUserService) {
 		this.transactionRepository = transactionRepository;
 		this.portfolioRepository = portfolioRepository;
 		this.assetRepository = assetRepository;
@@ -68,12 +72,12 @@ public class PortfolioTransactionService {
 		this.positionValuationCalculator = positionValuationCalculator;
 		this.marketDataProvider = marketDataProvider;
 		this.entityManager = entityManager;
+		this.currentUserService = currentUserService;
 	}
 
 	@Transactional
 	public PortfolioTransactionResponse create(Long portfolioId, CreatePortfolioTransactionRequest request) {
-		Portfolio portfolio = portfolioRepository.findById(portfolioId)
-				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
+		Portfolio portfolio = getCurrentUserPortfolio(portfolioId);
 		Asset asset = assetRepository.findById(request.assetId())
 				.orElseThrow(() -> new AssetNotFoundException(request.assetId()));
 
@@ -317,9 +321,16 @@ public class PortfolioTransactionService {
 	}
 
 	private void ensurePortfolioExists(Long portfolioId) {
-		if (!portfolioRepository.existsById(portfolioId)) {
+		Long userId = currentUserService.currentUserId();
+		if (!portfolioRepository.existsByIdAndUserId(portfolioId, userId)) {
 			throw new PortfolioNotFoundException(portfolioId);
 		}
+	}
+
+	private Portfolio getCurrentUserPortfolio(Long portfolioId) {
+		Long userId = currentUserService.currentUserId();
+		return portfolioRepository.findByIdAndUserId(portfolioId, userId)
+				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
 	}
 
 	private static PortfolioTransactionResponse toResponse(PortfolioTransaction transaction) {

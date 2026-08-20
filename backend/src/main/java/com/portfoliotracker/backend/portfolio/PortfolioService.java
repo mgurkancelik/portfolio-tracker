@@ -8,8 +8,8 @@ import jakarta.persistence.EntityManager;
 import com.portfoliotracker.backend.asset.Asset;
 import com.portfoliotracker.backend.asset.AssetRepository;
 import com.portfoliotracker.backend.asset.AssetType;
+import com.portfoliotracker.backend.security.CurrentUserService;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,19 +23,24 @@ public class PortfolioService {
 
 	private final EntityManager entityManager;
 
+	private final CurrentUserService currentUserService;
+
 	public PortfolioService(
 			PortfolioRepository portfolioRepository,
 			AssetRepository assetRepository,
-			EntityManager entityManager) {
+			EntityManager entityManager,
+			CurrentUserService currentUserService) {
 		this.portfolioRepository = portfolioRepository;
 		this.assetRepository = assetRepository;
 		this.entityManager = entityManager;
+		this.currentUserService = currentUserService;
 	}
 
 	@Transactional
 	public PortfolioResponse createPortfolio(CreatePortfolioRequest request) {
+		Long userId = currentUserService.currentUserId();
 		String normalizedBaseCurrency = request.baseCurrency().toUpperCase(Locale.ROOT);
-		Portfolio portfolio = new Portfolio(request.name(), normalizedBaseCurrency);
+		Portfolio portfolio = new Portfolio(request.name(), normalizedBaseCurrency, userId);
 		Portfolio saved = portfolioRepository.saveAndFlush(portfolio);
 		ensureCashAssetExists(normalizedBaseCurrency);
 		entityManager.refresh(saved);
@@ -44,15 +49,15 @@ public class PortfolioService {
 
 	@Transactional(readOnly = true)
 	public List<PortfolioResponse> listPortfolios() {
-		return portfolioRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+		Long userId = currentUserService.currentUserId();
+		return portfolioRepository.findAllByUserIdOrderByIdAsc(userId).stream()
 				.map(PortfolioService::toResponse)
 				.toList();
 	}
 
 	@Transactional
 	public PortfolioResponse updatePortfolio(Long portfolioId, UpdatePortfolioRequest request) {
-		Portfolio portfolio = portfolioRepository.findById(portfolioId)
-				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
+		Portfolio portfolio = getCurrentUserPortfolio(portfolioId);
 		String normalizedBaseCurrency = request.baseCurrency().toUpperCase(Locale.ROOT);
 
 		portfolio.setName(request.name().trim());
@@ -65,8 +70,7 @@ public class PortfolioService {
 
 	@Transactional
 	public void deletePortfolio(Long portfolioId) {
-		Portfolio portfolio = portfolioRepository.findById(portfolioId)
-				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
+		Portfolio portfolio = getCurrentUserPortfolio(portfolioId);
 
 		try {
 			portfolioRepository.delete(portfolio);
@@ -84,6 +88,12 @@ public class PortfolioService {
 				portfolio.getBaseCurrency(),
 				portfolio.getCreatedAt(),
 				portfolio.getUpdatedAt());
+	}
+
+	private Portfolio getCurrentUserPortfolio(Long portfolioId) {
+		Long userId = currentUserService.currentUserId();
+		return portfolioRepository.findByIdAndUserId(portfolioId, userId)
+				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
 	}
 
 	private void ensureCashAssetExists(String currency) {

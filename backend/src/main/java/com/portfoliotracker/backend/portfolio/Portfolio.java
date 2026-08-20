@@ -24,6 +24,9 @@ public class Portfolio {
 	@Column(name = "base_currency", nullable = false, length = 3)
 	private String baseCurrency;
 
+	@Column(name = "user_id", nullable = false)
+	private Long userId;
+
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
@@ -34,8 +37,13 @@ public class Portfolio {
 	}
 
 	public Portfolio(String name, String baseCurrency) {
+		this(name, baseCurrency, null);
+	}
+
+	public Portfolio(String name, String baseCurrency, Long userId) {
 		this.name = name;
 		this.baseCurrency = baseCurrency;
+		this.userId = userId;
 	}
 
 	public Long getId() {
@@ -56,6 +64,10 @@ public class Portfolio {
 
 	public void setBaseCurrency(String baseCurrency) {
 		this.baseCurrency = baseCurrency;
+	}
+
+	public Long getUserId() {
+		return userId;
 	}
 
 	public OffsetDateTime getCreatedAt() {

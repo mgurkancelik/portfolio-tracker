@@ -25,13 +25,19 @@ import com.portfoliotracker.backend.marketdata.FakeMarketDataProvider;
 import com.portfoliotracker.backend.transaction.PortfolioTransaction;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
 import com.portfoliotracker.backend.transaction.TransactionType;
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -66,8 +72,13 @@ class PortfolioSummaryApiIntegrationTest {
 	@Autowired
 	private PortfolioTransactionRepository transactionRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
 	@MockitoSpyBean
 	private FakeMarketDataProvider marketDataProvider;
+
+	private User currentUser;
 
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
@@ -80,10 +91,19 @@ class PortfolioSummaryApiIntegrationTest {
 
 	@BeforeEach
 	void deleteRecords() {
+		SecurityContextHolder.clearContext();
 		transactionRepository.deleteAll();
 		portfolioRepository.deleteAll();
 		assetRepository.deleteAll();
+		userRepository.deleteAll();
+		currentUser = createUser("owner@example.com");
+		authenticate(currentUser);
 		reset(marketDataProvider);
+	}
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
@@ -137,6 +157,18 @@ class PortfolioSummaryApiIntegrationTest {
 	@Test
 	void summaryReturnsNotFoundForUnknownPortfolio() throws Exception {
 		mockMvc.perform(get("/api/portfolios/999999/summary"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void summaryReturnsNotFoundForAnotherUsersPortfolio() throws Exception {
+		User otherUser = createUser("other@example.com");
+		Portfolio otherPortfolio = portfolioRepository.saveAndFlush(new Portfolio(
+				"Baska Portfoy",
+				"TRY",
+				otherUser.getId()));
+
+		mockMvc.perform(get(summaryPath(otherPortfolio)))
 				.andExpect(status().isNotFound());
 	}
 
@@ -230,7 +262,11 @@ class PortfolioSummaryApiIntegrationTest {
 	}
 
 	private Portfolio createPortfolio() {
-		return portfolioRepository.saveAndFlush(new Portfolio("Ana Portfoy", "TRY"));
+		return portfolioRepository.saveAndFlush(new Portfolio("Ana Portfoy", "TRY", currentUser.getId()));
+	}
+
+	private User createUser(String email) {
+		return userRepository.saveAndFlush(new User(email, "password-hash"));
 	}
 
 	private Asset createAsset(String symbol, String name, AssetType assetType, String currency) {
@@ -262,6 +298,13 @@ class PortfolioSummaryApiIntegrationTest {
 
 	private static String summaryPath(Portfolio portfolio) {
 		return "/api/portfolios/%d/summary".formatted(portfolio.getId());
+	}
+
+	private static void authenticate(User user) {
+		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+				user.getEmail(),
+				null,
+				List.of(new SimpleGrantedAuthority("ROLE_USER"))));
 	}
 
 	private static OffsetDateTime date(int dayOfMonth) {

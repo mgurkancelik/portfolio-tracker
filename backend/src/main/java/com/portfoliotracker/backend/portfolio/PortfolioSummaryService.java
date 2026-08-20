@@ -17,6 +17,7 @@ import com.portfoliotracker.backend.portfolio.calculation.PositionCalculator;
 import com.portfoliotracker.backend.portfolio.calculation.PositionSummary;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuation;
 import com.portfoliotracker.backend.portfolio.calculation.PositionValuationCalculator;
+import com.portfoliotracker.backend.security.CurrentUserService;
 import com.portfoliotracker.backend.transaction.PortfolioTransaction;
 import com.portfoliotracker.backend.transaction.PortfolioTransactionRepository;
 
@@ -41,22 +42,27 @@ public class PortfolioSummaryService {
 
 	private final ObjectProvider<MarketDataProvider> marketDataProvider;
 
+	private final CurrentUserService currentUserService;
+
 	public PortfolioSummaryService(
 			PortfolioRepository portfolioRepository,
 			PortfolioTransactionRepository transactionRepository,
 			PositionCalculator positionCalculator,
 			PositionValuationCalculator positionValuationCalculator,
-			ObjectProvider<MarketDataProvider> marketDataProvider) {
+			ObjectProvider<MarketDataProvider> marketDataProvider,
+			CurrentUserService currentUserService) {
 		this.portfolioRepository = portfolioRepository;
 		this.transactionRepository = transactionRepository;
 		this.positionCalculator = positionCalculator;
 		this.positionValuationCalculator = positionValuationCalculator;
 		this.marketDataProvider = marketDataProvider;
+		this.currentUserService = currentUserService;
 	}
 
 	@Transactional(readOnly = true)
 	public PortfolioSummaryResponse getSummary(Long portfolioId) {
-		Portfolio portfolio = portfolioRepository.findById(portfolioId)
+		Long userId = currentUserService.currentUserId();
+		Portfolio portfolio = portfolioRepository.findByIdAndUserId(portfolioId, userId)
 				.orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
 		List<PortfolioTransaction> transactions = transactionRepository
 				.findAllByPortfolioIdOrderByTransactionDateAscIdAsc(portfolioId);

@@ -21,7 +21,10 @@ import com.portfoliotracker.backend.asset.AssetRepository;
 import com.portfoliotracker.backend.asset.AssetType;
 import com.portfoliotracker.backend.portfolio.Portfolio;
 import com.portfoliotracker.backend.portfolio.PortfolioRepository;
+import com.portfoliotracker.backend.user.User;
+import com.portfoliotracker.backend.user.UserRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +32,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -63,6 +69,11 @@ class PortfolioTransactionApiIntegrationTest {
 	@Autowired
 	private PortfolioTransactionRepository transactionRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
+	private User currentUser;
+
 	@DynamicPropertySource
 	static void postgresProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -74,9 +85,18 @@ class PortfolioTransactionApiIntegrationTest {
 
 	@BeforeEach
 	void deleteRecords() {
+		SecurityContextHolder.clearContext();
 		transactionRepository.deleteAll();
 		portfolioRepository.deleteAll();
 		assetRepository.deleteAll();
+		userRepository.deleteAll();
+		currentUser = createUser("owner@example.com");
+		authenticate(currentUser);
+	}
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
@@ -502,6 +522,27 @@ class PortfolioTransactionApiIntegrationTest {
 	}
 
 	@Test
+	void otherUsersPortfolioReturnsNotFoundForTransactionAndPositionRequests() throws Exception {
+		User otherUser = createUser("other@example.com");
+		Portfolio otherPortfolio = portfolioRepository.saveAndFlush(new Portfolio(
+				"Baska Portfoy",
+				"TRY",
+				otherUser.getId()));
+		Asset asset = createAsset();
+
+		mockMvc.perform(post(transactionsPath(otherPortfolio))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validRequest(asset.getId(), "BUY", "10", "100", "0", date(1))))
+				.andExpect(status().isNotFound());
+
+		mockMvc.perform(get(positionsPath(otherPortfolio)))
+				.andExpect(status().isNotFound());
+
+		mockMvc.perform(get("/api/portfolios/%d/positions/%d".formatted(otherPortfolio.getId(), asset.getId())))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void unknownAssetReturnsNotFound() throws Exception {
 		Portfolio portfolio = createPortfolio();
 
@@ -522,7 +563,11 @@ class PortfolioTransactionApiIntegrationTest {
 	}
 
 	private Portfolio createPortfolio() {
-		return portfolioRepository.saveAndFlush(new Portfolio("Ana Portfoy", "TRY"));
+		return portfolioRepository.saveAndFlush(new Portfolio("Ana Portfoy", "TRY", currentUser.getId()));
+	}
+
+	private User createUser(String email) {
+		return userRepository.saveAndFlush(new User(email, "password-hash"));
 	}
 
 	private Asset createAsset() {
@@ -614,6 +659,13 @@ class PortfolioTransactionApiIntegrationTest {
 
 	private static OffsetDateTime date(int dayOfMonth) {
 		return OffsetDateTime.of(2026, 8, dayOfMonth, 10, 0, 0, 0, ZoneOffset.UTC);
+	}
+
+	private static void authenticate(User user) {
+		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+				user.getEmail(),
+				null,
+				List.of(new SimpleGrantedAuthority("ROLE_USER"))));
 	}
 
 	private record TestContext(Portfolio portfolio, Asset asset, Asset cashAsset) {
