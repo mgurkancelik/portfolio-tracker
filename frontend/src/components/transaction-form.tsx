@@ -133,6 +133,7 @@ function NumberField({
       <input
         className="h-11 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm text-[#102033] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
         defaultValue={defaultValue}
+        inputMode="decimal"
         min={min}
         name={name}
         required
@@ -148,12 +149,19 @@ function FormMessage({ state }: { state: TransactionFormState }) {
     return <span className="text-sm text-[#64748b]">İşlem server action ile kaydedilir.</span>;
   }
 
+  if (state.status === "error") {
+    return (
+      <div
+        className="rounded-md border border-[#fecaca] bg-[#fff1f1] px-4 py-3 text-sm font-medium text-[#b42318]"
+        role="alert"
+      >
+        {state.message}
+      </div>
+    );
+  }
+
   return (
-    <span
-      className={`text-sm font-medium ${
-        state.status === "success" ? "text-[#15803d]" : "text-[#b42318]"
-      }`}
-    >
+    <span className="text-sm font-medium text-[#15803d]" role="status">
       {state.message}
     </span>
   );
@@ -168,7 +176,7 @@ function SubmitButton() {
       disabled={pending}
       type="submit"
     >
-      {pending ? "Kaydediliyor" : "İşlem Ekle"}
+      {pending ? "İşleniyor..." : "İşlem Ekle"}
     </button>
   );
 }

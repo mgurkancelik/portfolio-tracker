@@ -172,7 +172,9 @@ export function createPortfolioTransaction(
   portfolioId: number,
   input: CreatePortfolioTransactionInput,
 ) {
-  return sendBackend<PortfolioTransaction>(`/api/portfolios/${portfolioId}/transactions`, input);
+  return sendBackend<PortfolioTransaction>(`/api/portfolios/${portfolioId}/transactions`, input, {
+    conflictMessage: "Yetersiz nakit bakiyesi. Lütfen önce portföyünüze CASH ekleyin veya tutarı düşürün.",
+  });
 }
 
 export function updatePortfolioTransaction(

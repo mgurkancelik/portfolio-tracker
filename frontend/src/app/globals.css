@@ -3,6 +3,12 @@
 :root {
   --background: #f5f7fa;
   --foreground: #1f2933;
+  --chart-1: #7aa7d9;
+  --chart-2: #86c5a5;
+  --chart-3: #f0c36a;
+  --chart-4: #d78b93;
+  --chart-5: #9b8fd8;
+  --chart-6: #74c7c7;
 }
 
 @theme inline {
