@@ -10,6 +10,7 @@ import {
   deleteAsset,
   deletePortfolio,
   deletePortfolioTransaction,
+  isAuthRequiredError,
   updateAsset,
   updatePortfolio,
   updatePortfolioTransaction,
@@ -80,10 +81,7 @@ export async function createPortfolioAction(
     });
     nextUrl = `/dashboard?portfolioId=${portfolio.id}`;
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Portfoy kaydedilemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Portfoy kaydedilemedi.");
   }
 
   revalidatePath("/dashboard");
@@ -110,10 +108,7 @@ export async function updatePortfolioAction(
     revalidatePath("/dashboard");
     return { message: "Portfoy guncellendi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Portfoy guncellenemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Portfoy guncellenemedi.");
   }
 }
 
@@ -130,10 +125,7 @@ export async function deletePortfolioAction(
   try {
     await deletePortfolio(portfolioId);
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Portfoy silinemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Portfoy silinemedi.");
   }
 
   revalidatePath("/dashboard");
@@ -163,10 +155,7 @@ export async function createAssetAction(
     revalidatePath("/dashboard");
     return { message: "Varlik kaydedildi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Varlik kaydedilemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Varlik kaydedilemedi.");
   }
 }
 
@@ -194,10 +183,7 @@ export async function updateAssetAction(
     revalidatePath("/dashboard");
     return { message: "Varlik guncellendi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Varlik guncellenemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Varlik guncellenemedi.");
   }
 }
 
@@ -216,10 +202,7 @@ export async function deleteAssetAction(
     revalidatePath("/dashboard");
     return { message: "Varlik silindi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Varlik silinemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Varlik silinemedi.");
   }
 }
 
@@ -260,10 +243,7 @@ export async function createTransactionAction(
     revalidatePath("/dashboard");
     return { message: "Islem kaydedildi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Islem kaydedilemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Islem kaydedilemedi.");
   }
 }
 
@@ -283,10 +263,7 @@ export async function deleteTransactionAction(
     revalidatePath("/dashboard");
     return { message: "Islem silindi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Islem silinemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Islem silinemedi.");
   }
 }
 
@@ -328,10 +305,7 @@ export async function updateTransactionAction(
     revalidatePath("/dashboard");
     return { message: "Islem guncellendi.", status: "success" };
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "Islem guncellenemedi.",
-      status: "error",
-    };
+    return handleActionError(error, "Islem guncellenemedi.");
   }
 }
 
@@ -360,4 +334,14 @@ function toIsoDateTime(value: string) {
     return null;
   }
   return date.toISOString();
+}
+
+function handleActionError(error: unknown, fallbackMessage: string) {
+  if (isAuthRequiredError(error)) {
+    redirect("/logout");
+  }
+  return {
+    message: error instanceof Error ? error.message : fallbackMessage,
+    status: "error" as const,
+  };
 }

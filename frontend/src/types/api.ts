@@ -47,6 +47,15 @@ export type CreatePortfolioTransactionInput = {
 
 export type UpdatePortfolioTransactionInput = CreatePortfolioTransactionInput;
 
+export type AuthInput = {
+  email: string;
+  password: string;
+};
+
+export type TokenResponse = {
+  token: string;
+};
+
 export type PortfolioTransaction = {
   id: number;
   portfolioId: number;

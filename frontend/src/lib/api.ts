@@ -1,5 +1,6 @@
 import type {
   Asset,
+  AuthInput,
   CreateAssetInput,
   CreatePortfolioInput,
   CreatePortfolioTransactionInput,
@@ -7,14 +8,26 @@ import type {
   PortfolioSummary,
   PortfolioTransaction,
   Position,
+  TokenResponse,
   UpdateAssetInput,
   UpdatePortfolioInput,
   UpdatePortfolioTransactionInput,
 } from "@/types/api";
+import { getAuthToken } from "@/lib/auth-cookie";
 
 const jsonHeaders = {
   Accept: "application/json",
 };
+
+export class AuthRequiredError extends Error {
+  constructor() {
+    super("Authentication is required.");
+  }
+}
+
+export function isAuthRequiredError(error: unknown): error is AuthRequiredError {
+  return error instanceof AuthRequiredError;
+}
 
 function getBackendBaseUrl() {
   const baseUrl = process.env.BACKEND_BASE_URL;
@@ -24,6 +37,15 @@ function getBackendBaseUrl() {
   return baseUrl.replace(/\/$/, "");
 }
 
+async function getRequestHeaders(contentType?: "json") {
+  const token = await getAuthToken();
+  return {
+    ...jsonHeaders,
+    ...(contentType === "json" ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 async function fetchBackend<T>(path: string): Promise<T> {
   const url = `${getBackendBaseUrl()}${path}`;
 
@@ -31,13 +53,14 @@ async function fetchBackend<T>(path: string): Promise<T> {
   try {
     response = await fetch(url, {
       cache: "no-store",
-      headers: jsonHeaders,
+      headers: await getRequestHeaders(),
     });
   } catch {
     throw new Error("Backend'e ulasilamadi.");
   }
 
   if (!response.ok) {
+    handleUnauthorized(response.status);
     throw new Error(`Backend API ${response.status} dondu.`);
   }
 
@@ -50,6 +73,8 @@ async function sendBackend<T>(
   options: {
     conflictMessage?: string;
     method?: "POST" | "PUT";
+    redirectOnUnauthorized?: boolean;
+    unauthorizedMessage?: string;
   } = {},
 ): Promise<T> {
   const url = `${getBackendBaseUrl()}${path}`;
@@ -59,10 +84,7 @@ async function sendBackend<T>(
     response = await fetch(url, {
       body: JSON.stringify(body),
       cache: "no-store",
-      headers: {
-        ...jsonHeaders,
-        "Content-Type": "application/json",
-      },
+      headers: await getRequestHeaders("json"),
       method: options.method ?? "POST",
     });
   } catch {
@@ -70,7 +92,10 @@ async function sendBackend<T>(
   }
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(response.status, options.conflictMessage));
+    if (options.redirectOnUnauthorized !== false) {
+      handleUnauthorized(response.status);
+    }
+    throw new Error(getErrorMessage(response.status, options.conflictMessage, options.unauthorizedMessage));
   }
 
   return response.json() as Promise<T>;
@@ -88,7 +113,7 @@ async function deleteBackend(
   try {
     response = await fetch(url, {
       cache: "no-store",
-      headers: jsonHeaders,
+      headers: await getRequestHeaders(),
       method: "DELETE",
     });
   } catch {
@@ -96,11 +121,22 @@ async function deleteBackend(
   }
 
   if (!response.ok) {
+    handleUnauthorized(response.status);
     throw new Error(getErrorMessage(response.status, options.conflictMessage));
   }
 }
 
-function getErrorMessage(status: number, conflictMessage = "Satis miktari mevcut pozisyondan fazla.") {
+function handleUnauthorized(status: number) {
+  if (status === 401 || status === 403) {
+    throw new AuthRequiredError();
+  }
+}
+
+function getErrorMessage(
+  status: number,
+  conflictMessage = "Satis miktari mevcut pozisyondan fazla.",
+  unauthorizedMessage = "Oturum suresi doldu. Lutfen tekrar giris yap.",
+) {
   if (status === 400) {
     return "Form alanlarini kontrol et.";
   }
@@ -110,7 +146,25 @@ function getErrorMessage(status: number, conflictMessage = "Satis miktari mevcut
   if (status === 409) {
     return conflictMessage;
   }
+  if (status === 401 || status === 403) {
+    return unauthorizedMessage;
+  }
   return `Backend API ${status} dondu.`;
+}
+
+export function login(input: AuthInput) {
+  return sendBackend<TokenResponse>("/api/auth/login", input, {
+    conflictMessage: "Email veya sifre hatali.",
+    redirectOnUnauthorized: false,
+    unauthorizedMessage: "Email veya sifre hatali.",
+  });
+}
+
+export function register(input: AuthInput) {
+  return sendBackend<TokenResponse>("/api/auth/register", input, {
+    conflictMessage: "Bu email ile daha once kayit olunmus.",
+    redirectOnUnauthorized: false,
+  });
 }
 
 export function getPortfolios() {

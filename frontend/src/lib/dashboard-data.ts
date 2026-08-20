@@ -4,8 +4,10 @@ import {
   getPortfolios,
   getPortfolioSummary,
   getPortfolioTransactions,
+  isAuthRequiredError,
 } from "@/lib/api";
 import type { Asset, Portfolio, PortfolioSummary, PortfolioTransaction, Position } from "@/types/api";
+import { redirect } from "next/navigation";
 
 export async function loadDashboardData(portfolioIdParam?: string): Promise<DashboardData> {
   try {
@@ -24,7 +26,10 @@ export async function loadDashboardData(portfolioIdParam?: string): Promise<Dash
     ]);
 
     return { assets, portfolio, portfolios, positions, status: "ready", summary, transactions };
-  } catch {
+  } catch (error) {
+    if (isAuthRequiredError(error)) {
+      redirect("/logout");
+    }
     return { status: "backend-error" };
   }
 }
