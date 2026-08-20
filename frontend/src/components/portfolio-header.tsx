@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -86,6 +87,12 @@ export function PortfolioHeader({
               </p>
               <p className="mt-1 text-lg font-semibold text-white">{portfolio.baseCurrency}</p>
             </div>
+            <Link
+              className="inline-flex h-11 items-center justify-center rounded-md border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-[#93c5fd]"
+              href="/logout"
+            >
+              Çıkış Yap
+            </Link>
           </div>
         </div>
 
